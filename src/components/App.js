@@ -301,7 +301,11 @@ function AdminDashboard({ events, navigate, userData }) {
     const [namaEvent, setNamaEvent] = useState('');
     const [lokasi, setLokasi] = useState('');
     const [deskripsi, setDeskripsi] = useState('');
-     // Proteksi halaman: jika bukan admin, redirect ke home
+    const [imageFile, setImageFile] = useState(null);
+    const [imageUrl, setImageUrl] = useState('');
+    const [uploading, setUploading] = useState(false);
+
+    // Proteksi halaman: jika bukan admin, redirect ke home
     useEffect(() => {
         if (!userData || userData.role !== 'admin') {
             navigate('home');
@@ -314,30 +318,79 @@ function AdminDashboard({ events, navigate, userData }) {
         </div>;
     }
 
+    // Function untuk upload gambar ke Vercel Blob
+    const handleImageUpload = async (file) => {
+        if (!file) return;
+        
+        setUploading(true);
+        const formData = new FormData();
+        formData.append('file', file);
+        
+        try {
+            const response = await fetch('/api/upload', {
+                method: 'POST',
+                body: formData,
+            });
+            
+            const result = await response.json();
+            
+            if (response.ok) {
+                setImageUrl(result.url);
+                console.log('Upload berhasil:', result.url);
+            } else {
+                console.error('Upload gagal:', result.error);
+                alert('Upload gagal: ' + result.error);
+            }
+        } catch (error) {
+            console.error('Upload error:', error);
+            alert('Terjadi kesalahan saat upload');
+        } finally {
+            setUploading(false);
+        }
+    };
+
     const addEvent = async (e) => {
         e.preventDefault();
-        if (namaEvent.trim() === '' || lokasi.trim() === '' || deskripsi.trim() === '' || kategori === '') return;
+        if (namaEvent.trim() === '' || lokasi.trim() === '' || deskripsi.trim() === '' || kategori === '') {
+            alert('Mohon lengkapi semua field');
+            return;
+        }
         
-        await addDoc(collection(db, 'events'), {
-            nama_event: namaEvent,
-            lokasi: lokasi,
-            deskripsi: deskripsi,
-            kategori: kategori,
-            harga_tiket: 50000,
-            kuota: 100,
-            tanggal_event: new Date(),
-            gambar_event: 'https://placehold.co/600x400/166534/FFFFFF?text=Event'
-        });
+        try {
+            await addDoc(collection(db, 'events'), {
+                nama_event: namaEvent,
+                lokasi: lokasi,
+                deskripsi: deskripsi,
+                kategori: kategori,
+                harga_tiket: 50000,
+                kuota: 100,
+                tanggal_event: new Date(),
+                gambar_event: imageUrl || 'https://placehold.co/600x400/166534/FFFFFF?text=Event'
+            });
 
-        setNamaEvent('');
-        setLokasi('');
-        setDeskripsi('');
-        setKategori('');
+            setNamaEvent('');
+            setLokasi('');
+            setDeskripsi('');
+            setKategori('');
+            setImageUrl('');
+            setImageFile(null);
+            
+            alert('Event berhasil ditambahkan!');
+        } catch (error) {
+            console.error('Error adding event:', error);
+            alert('Gagal menambahkan event');
+        }
     };
 
     const deleteEvent = async (id) => {
         if (window.confirm("Apakah Anda yakin ingin menghapus event ini?")) {
-            await deleteDoc(doc(db, 'events', id));
+            try {
+                await deleteDoc(doc(db, 'events', id));
+                alert('Event berhasil dihapus!');
+            } catch (error) {
+                console.error('Error deleting event:', error);
+                alert('Gagal menghapus event');
+            }
         }
     };
 
@@ -353,20 +406,23 @@ function AdminDashboard({ events, navigate, userData }) {
                         value={namaEvent} 
                         onChange={e => setNamaEvent(e.target.value)} 
                         placeholder="Nama Event" 
-                        className="w-full px-3 py-2 border rounded-md" 
+                        className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-emerald-500" 
+                        required
                     />
                     <input 
                         value={lokasi} 
                         onChange={e => setLokasi(e.target.value)} 
                         placeholder="Lokasi" 
-                        className="w-full px-3 py-2 border rounded-md" 
+                        className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-emerald-500" 
+                        required
                     />
                     
                     {/* DROPDOWN KATEGORI */}
                     <select 
                         value={kategori} 
                         onChange={e => setKategori(e.target.value)} 
-                        className="w-full px-3 py-2 border rounded-md"
+                        className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-emerald-500"
+                        required
                     >
                         <option value="">Pilih Kategori</option>
                         <option value="festival">Festival</option>
@@ -375,19 +431,85 @@ function AdminDashboard({ events, navigate, userData }) {
                         <option value="pameran">Pameran</option>
                         <option value="konser">Konser</option>
                     </select>
+
+                    {/* Upload Gambar */}
+                    <div className="flex flex-col">
+                        <label className="text-sm font-medium text-gray-700 mb-1">
+                            Gambar Event
+                        </label>
+                        <input 
+                            type="file" 
+                            accept="image/*"
+                            onChange={(e) => {
+                                const file = e.target.files[0];
+                                if (file) {
+                                    setImageFile(file);
+                                    handleImageUpload(file);
+                                }
+                            }}
+                            className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-emerald-500"
+                            disabled={uploading}
+                        />
+                        {uploading && (
+                            <div className="flex items-center mt-1">
+                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-emerald-600 mr-2"></div>
+                                <p className="text-sm text-blue-600">Uploading...</p>
+                            </div>
+                        )}
+                        {imageUrl && (
+                            <p className="text-sm text-green-600 mt-1 flex items-center">
+                                <span className="mr-1">✓</span> Upload berhasil
+                            </p>
+                        )}
+                    </div>
                     
                     <textarea 
                         value={deskripsi} 
                         onChange={e => setDeskripsi(e.target.value)} 
-                        placeholder="Deskripsi" 
-                        className="w-full px-3 py-2 border rounded-md md:col-span-2"
+                        placeholder="Deskripsi Event" 
+                        className="w-full px-3 py-2 border rounded-md md:col-span-2 focus:ring-2 focus:ring-emerald-500"
+                        rows="3"
+                        required
                     ></textarea>
                     
-                    <button type="submit" className="w-full md:w-auto px-4 py-2 font-semibold text-white bg-emerald-600 rounded-md hover:bg-emerald-700 flex items-center justify-center">
-                        <PlusCircle className="mr-2 h-5 w-5" /> Simpan Event
+                    <button 
+                        type="submit" 
+                        className="w-full md:w-auto px-4 py-2 font-semibold text-white bg-emerald-600 rounded-md hover:bg-emerald-700 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        disabled={uploading}
+                    >
+                        <PlusCircle className="mr-2 h-5 w-5" /> 
+                        {uploading ? 'Processing...' : 'Simpan Event'}
                     </button>
                 </form>
             </div>
+
+            {/* Preview Gambar */}
+            {imageUrl && (
+                <div className="bg-white p-4 rounded-lg shadow-md mb-8">
+                    <h4 className="font-semibold mb-3 text-gray-700">Preview Gambar Event:</h4>
+                    <div className="flex items-start space-x-4">
+                        <img 
+                            src={imageUrl} 
+                            alt="Preview Event" 
+                            className="max-w-xs h-auto rounded-lg shadow-sm border"
+                        />
+                        <div className="flex-1">
+                            <p className="text-sm text-gray-600 mb-2">
+                                <strong>URL:</strong> {imageUrl}
+                            </p>
+                            <button 
+                                onClick={() => {
+                                    setImageUrl('');
+                                    setImageFile(null);
+                                }}
+                                className="text-red-600 hover:text-red-800 text-sm"
+                            >
+                                Hapus Gambar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Tabel Daftar Event */}
             <div className="bg-white p-6 rounded-lg shadow-md">
@@ -396,6 +518,7 @@ function AdminDashboard({ events, navigate, userData }) {
                     <table className="min-w-full divide-y divide-gray-200">
                         <thead className="bg-gray-50">
                             <tr>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Gambar</th>
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nama Event</th>
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Lokasi</th>
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Kategori</th>
@@ -405,15 +528,30 @@ function AdminDashboard({ events, navigate, userData }) {
                         <tbody className="bg-white divide-y divide-gray-200">
                             {events.map(event => (
                                 <tr key={event.id}>
-                                    <td className="px-6 py-4 whitespace-nowrap">{event.nama_event}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap">{event.lokasi}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap">
+                                        <img 
+                                            src={event.gambar_event} 
+                                            alt={event.nama_event}
+                                            className="h-12 w-12 rounded-lg object-cover"
+                                        />
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900">
+                                        {event.nama_event}
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-gray-500">
+                                        {event.lokasi}
+                                    </td>
                                     <td className="px-6 py-4 whitespace-nowrap">
                                         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800">
                                             {event.kategori || 'Tidak ada kategori'}
                                         </span>
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-right">
-                                        <button onClick={() => deleteEvent(event.id)} className="text-red-600 hover:text-red-800">
+                                        <button 
+                                            onClick={() => deleteEvent(event.id)} 
+                                            className="text-red-600 hover:text-red-800 transition-colors"
+                                            title="Hapus Event"
+                                        >
                                             <Trash2 className="h-5 w-5" />
                                         </button>
                                     </td>
