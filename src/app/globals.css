@@ -5,6 +5,31 @@
   --foreground: #171717;
 }
 
+@theme {
+  --color-primary-50: #eff6ff;
+  --color-primary-100: #dbeafe;
+  --color-primary-200: #bfdbfe;
+  --color-primary-300: #93c5fd;
+  --color-primary-400: #60a5fa;
+  --color-primary-500: #5E7CCF;
+  --color-primary-600: #4c63a1;
+  --color-primary-700: #3d4f82;
+  --color-primary-800: #2e3b63;
+  --color-primary-900: #1e2744;
+
+  /* Override emerald colors dengan biru */
+  --color-emerald-50: #eff6ff;
+  --color-emerald-100: #dbeafe;
+  --color-emerald-200: #bfdbfe;
+  --color-emerald-300: #93c5fd;
+  --color-emerald-400: #60a5fa;
+  --color-emerald-500: #5E7CCF;
+  --color-emerald-600: #4c63a1;
+  --color-emerald-700: #3d4f82;
+  --color-emerald-800: #2e3b63;
+  --color-emerald-900: #1e2744;
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
