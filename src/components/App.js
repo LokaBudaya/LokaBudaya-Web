@@ -254,17 +254,21 @@ function RegisterPage({ navigate }) {
 }
 
 function AdminDashboard({ events, navigate, userData }) {
-     // Proteksi halaman: jika bukan admin, redirect ke home
-    if (!userData || userData.role !== 'admin') {
-        useEffect(() => {
-           navigate('home');
-        }, [navigate]);
-        return null;
-    }
-
     const [namaEvent, setNamaEvent] = useState('');
     const [lokasi, setLokasi] = useState('');
     const [deskripsi, setDeskripsi] = useState('');
+     // Proteksi halaman: jika bukan admin, redirect ke home
+    useEffect(() => {
+        if (!userData || userData.role !== 'admin') {
+            navigate('home');
+        }
+    }, [userData, navigate]);
+
+    if (!userData || userData.role !== 'admin') {
+        return <div className="flex justify-center items-center h-screen">
+            <p>Redirecting...</p>
+        </div>;
+    }
 
     const addEvent = async (e) => {
         e.preventDefault();
