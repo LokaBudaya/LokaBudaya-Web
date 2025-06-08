@@ -20,7 +20,7 @@ import {
     setDoc,
     getDoc
 } from 'firebase/firestore';
-import { Handshake, Ticket, LogIn, UserPlus, LogOut, PlusCircle, Trash2, Home, User, Settings, Facebook, Instagram, Youtube, Twitter, MessageCircle, Music } from 'lucide-react';
+import { Handshake, Ticket, Search, ChevronDown, Calendar, PlusCircle, Trash2, Home, User, Settings, Facebook, Instagram, Youtube, Twitter, MessageCircle, Music } from 'lucide-react';
 
 // Firebase Configuration
 const firebaseConfig = {
@@ -115,18 +115,61 @@ export default function App() {
 
 // --- KOMPONEN HALAMAN ---
 function HomePage({ events }) {
+    const [filteredEvents, setFilteredEvents] = useState(events);
+
+    const handleFilterChange = (filters) => {
+        let filtered = events;
+
+        // Filter by location
+        if (filters.location && filters.location !== 'all') {
+            filtered = filtered.filter(event => 
+                event.lokasi.toLowerCase().includes(filters.location.toLowerCase())
+            );
+        }
+
+        // Filter by category
+        if (filters.category && filters.category !== 'all') {
+            filtered = filtered.filter(event => 
+                event.kategori?.toLowerCase() === filters.category.toLowerCase()
+            );
+        }
+
+        // Filter by date
+        if (filters.date) {
+            filtered = filtered.filter(event => {
+                const eventDate = new Date(event.tanggal_event.toDate());
+                const filterDate = new Date(filters.date);
+                return eventDate.toDateString() === filterDate.toDateString();
+            });
+        }
+
+        // Filter by search query
+        if (filters.search) {
+            filtered = filtered.filter(event => 
+                event.nama_event.toLowerCase().includes(filters.search.toLowerCase()) ||
+                event.deskripsi.toLowerCase().includes(filters.search.toLowerCase()) ||
+                event.lokasi.toLowerCase().includes(filters.search.toLowerCase())
+            );
+        }
+
+        setFilteredEvents(filtered);
+    };
+
+    useEffect(() => {
+        setFilteredEvents(events);
+    }, [events]);
     return (
         <div>
-            <HeroSection />
+            <HeroSection onFilterChange={handleFilterChange} />
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-                <h2 className="text-3xl font-bold text-center text-emerald-900 mb-8">Event Budaya Mendatang</h2>
+                {/* <h2 className="text-3xl font-bold text-center text-emerald-900 mb-8">Event Budaya Mendatang</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                     {events.length > 0 ? (
                         events.map(event => <EventCard key={event.id} event={event} />)
                     ) : (
                         <p className="col-span-3 text-center text-gray-500">Belum ada event yang tersedia.</p>
                     )}
-                </div>
+                </div> */}
             </div>
         </div>
     );
@@ -254,6 +297,7 @@ function RegisterPage({ navigate }) {
 }
 
 function AdminDashboard({ events, navigate, userData }) {
+    const [kategori, setKategori] = useState('');
     const [namaEvent, setNamaEvent] = useState('');
     const [lokasi, setLokasi] = useState('');
     const [deskripsi, setDeskripsi] = useState('');
@@ -272,13 +316,13 @@ function AdminDashboard({ events, navigate, userData }) {
 
     const addEvent = async (e) => {
         e.preventDefault();
-        if (namaEvent.trim() === '' || lokasi.trim() === '' || deskripsi.trim() === '') return;
+        if (namaEvent.trim() === '' || lokasi.trim() === '' || deskripsi.trim() === '' || kategori === '') return;
         
         await addDoc(collection(db, 'events'), {
             nama_event: namaEvent,
             lokasi: lokasi,
             deskripsi: deskripsi,
-            // Tambahkan field lain sesuai kebutuhan
+            kategori: kategori,
             harga_tiket: 50000,
             kuota: 100,
             tanggal_event: new Date(),
@@ -288,6 +332,7 @@ function AdminDashboard({ events, navigate, userData }) {
         setNamaEvent('');
         setLokasi('');
         setDeskripsi('');
+        setKategori('');
     };
 
     const deleteEvent = async (id) => {
@@ -304,9 +349,40 @@ function AdminDashboard({ events, navigate, userData }) {
             <div className="bg-white p-6 rounded-lg shadow-md mb-8">
                 <h3 className="text-xl font-semibold mb-4">Tambah Event Baru</h3>
                 <form onSubmit={addEvent} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <input value={namaEvent} onChange={e => setNamaEvent(e.target.value)} placeholder="Nama Event" className="w-full px-3 py-2 border rounded-md" />
-                    <input value={lokasi} onChange={e => setLokasi(e.target.value)} placeholder="Lokasi" className="w-full px-3 py-2 border rounded-md" />
-                    <textarea value={deskripsi} onChange={e => setDeskripsi(e.target.value)} placeholder="Deskripsi" className="w-full px-3 py-2 border rounded-md md:col-span-2"></textarea>
+                    <input 
+                        value={namaEvent} 
+                        onChange={e => setNamaEvent(e.target.value)} 
+                        placeholder="Nama Event" 
+                        className="w-full px-3 py-2 border rounded-md" 
+                    />
+                    <input 
+                        value={lokasi} 
+                        onChange={e => setLokasi(e.target.value)} 
+                        placeholder="Lokasi" 
+                        className="w-full px-3 py-2 border rounded-md" 
+                    />
+                    
+                    {/* DROPDOWN KATEGORI */}
+                    <select 
+                        value={kategori} 
+                        onChange={e => setKategori(e.target.value)} 
+                        className="w-full px-3 py-2 border rounded-md"
+                    >
+                        <option value="">Pilih Kategori</option>
+                        <option value="festival">Festival</option>
+                        <option value="pertunjukan">Pertunjukan</option>
+                        <option value="workshop">Workshop</option>
+                        <option value="pameran">Pameran</option>
+                        <option value="konser">Konser</option>
+                    </select>
+                    
+                    <textarea 
+                        value={deskripsi} 
+                        onChange={e => setDeskripsi(e.target.value)} 
+                        placeholder="Deskripsi" 
+                        className="w-full px-3 py-2 border rounded-md md:col-span-2"
+                    ></textarea>
+                    
                     <button type="submit" className="w-full md:w-auto px-4 py-2 font-semibold text-white bg-emerald-600 rounded-md hover:bg-emerald-700 flex items-center justify-center">
                         <PlusCircle className="mr-2 h-5 w-5" /> Simpan Event
                     </button>
@@ -322,6 +398,7 @@ function AdminDashboard({ events, navigate, userData }) {
                             <tr>
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nama Event</th>
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Lokasi</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Kategori</th>
                                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Aksi</th>
                             </tr>
                         </thead>
@@ -330,6 +407,11 @@ function AdminDashboard({ events, navigate, userData }) {
                                 <tr key={event.id}>
                                     <td className="px-6 py-4 whitespace-nowrap">{event.nama_event}</td>
                                     <td className="px-6 py-4 whitespace-nowrap">{event.lokasi}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap">
+                                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800">
+                                            {event.kategori || 'Tidak ada kategori'}
+                                        </span>
+                                    </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-right">
                                         <button onClick={() => deleteEvent(event.id)} className="text-red-600 hover:text-red-800">
                                             <Trash2 className="h-5 w-5" />
@@ -346,7 +428,6 @@ function AdminDashboard({ events, navigate, userData }) {
 }
 
 // --- KOMPONEN UI ---
-
 function Navbar({ user, userData, navigate }) {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
 
@@ -365,8 +446,8 @@ function Navbar({ user, userData, navigate }) {
                             <Image 
                                 src="/images/logo.png" 
                                 alt="LokaBudaya Logo" 
-                                width={120}
-                                height={40}
+                                width={135}
+                                height={45}
                                 className="h-auto w-auto"
                                 priority
                             />
@@ -377,6 +458,9 @@ function Navbar({ user, userData, navigate }) {
                     <div className="hidden md:flex items-center space-x-8">
                         <a href="#" onClick={() => navigate('home')} 
                            className="text-white hover:text-emerald-300 transition-colors duration-200 font-medium">
+                            HOME
+                        </a>
+                        <a href="#" className="text-white hover:text-emerald-300 transition-colors duration-200 font-medium">
                             PARTNERSHIPS
                         </a>
                         <a href="#" className="text-white hover:text-emerald-300 transition-colors duration-200 font-medium">
@@ -409,11 +493,11 @@ function Navbar({ user, userData, navigate }) {
                             <>
                                 <button onClick={() => navigate('login')} 
                                         className="px-6 py-2 text-white border border-white rounded-full hover:bg-white hover:text-emerald-800 transition-all duration-200 font-medium">
-                                    Sign In
+                                    Log In
                                 </button>
                                 <button onClick={() => navigate('register')} 
                                         className="px-6 py-2 bg-emerald-600 text-white rounded-full hover:bg-emerald-700 transition-all duration-200 font-medium">
-                                    Log In
+                                    Sign Up
                                 </button>
                             </>
                         )}
@@ -478,26 +562,151 @@ function Navbar({ user, userData, navigate }) {
     );
 }
 
-function HeroSection() {
+function HeroSection({ onFilterChange }) {
     return (
-        <div className="relative h-screen bg-cover bg-center" style={{ 
-                    backgroundImage: "url('/images/hero-bg.png')",
-                    backgroundRepeat: 'no-repeat',
-                    backgroundSize: 'cover',
-                    backgroundPosition: 'center'
-                }}>
-            <div className="absolute inset-0 bg-black/40 flex flex-col justify-center items-center text-center text-white px-4">
-                <h1 className="text-4xl md:text-7xl font-bold mb-6 tracking-wide">
-                    DISCOVER THE<br />
-                    SIGHTS OF THE<br />
-                    <span className="text-emerald-400">FLORES</span>
-                </h1>
-                <p className="text-lg md:text-xl max-w-2xl mb-8 font-light">
-                    Beli tiket untuk festival, pertunjukan, dan pameran budaya paling otentik di seluruh nusantara.
-                </p>
-                <button className="px-8 py-4 bg-emerald-600 text-white rounded-full font-semibold hover:bg-emerald-700 transition-all duration-200 transform hover:scale-105">
-                    Explore your destinations
-                </button>
+        <div className="relative">
+            {/* Hero Content */}
+            <div className="relative h-screen bg-cover bg-center" style={{ 
+                        backgroundImage: "url('/images/hero-bg.png')",
+                        backgroundRepeat: 'no-repeat',
+                        backgroundSize: 'cover',
+                        backgroundPosition: 'center'
+                    }}>
+                <div className="absolute inset-0 bg-black/40 flex flex-col justify-start items-start text-left text-white px-4 md:px-8 lg:px-16 pt-32 md:pt-40">
+                    <h1 className="text-4xl md:text-7xl font-bold mb-6 tracking-wide max-w-4xl">
+                        DISCOVER THE<br />
+                        SIGHTS OF THE<br />
+                        <span /*className="text-emerald-400"*/>FLORES</span>
+                    </h1>
+                </div>
+            </div>
+            {/* Filter Section */}
+            <div className="relative -mt-16 z-10">
+                <FilterSection onFilterChange={onFilterChange} />
+            </div>
+        </div>
+    );
+}
+
+function FilterSection({ onFilterChange }) {
+    const [selectedLocation, setSelectedLocation] = useState('all');
+    const [selectedCategory, setSelectedCategory] = useState('all');
+    const [selectedDate, setSelectedDate] = useState('');
+    const [searchQuery, setSearchQuery] = useState('');
+
+    const locations = [
+        { value: 'all', label: 'All Locations' },
+        { value: 'jakarta', label: 'Jakarta' },
+        { value: 'bali', label: 'Bali' },
+        { value: 'yogyakarta', label: 'Yogyakarta' },
+        { value: 'bandung', label: 'Bandung' },
+        { value: 'surabaya', label: 'Surabaya' }
+    ];
+
+    const categories = [
+        { value: 'all', label: 'All Categories' },
+        { value: 'festival', label: 'Festival' },
+        { value: 'pertunjukan', label: 'Pertunjukan' },
+        { value: 'workshop', label: 'Workshop' },
+        { value: 'pameran', label: 'Pameran' },
+        { value: 'konser', label: 'Konser' }
+    ];
+
+    const handleFilterChange = () => {
+        onFilterChange({
+            location: selectedLocation,
+            category: selectedCategory,
+            date: selectedDate,
+            search: searchQuery
+        });
+    };
+
+    return (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="bg-white rounded-xl shadow-2xl p-6">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                    {/* Location Dropdown */}
+                    <div className="relative">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Location
+                        </label>
+                        <div className="relative">
+                            <select 
+                                value={selectedLocation}
+                                onChange={(e) => {
+                                    setSelectedLocation(e.target.value);
+                                    setTimeout(handleFilterChange, 0);
+                                }}
+                                className="w-full px-4 py-3 border border-gray-300 rounded-lg appearance-none bg-white focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                            >
+                                {locations.map(location => (
+                                    <option key={location.value} value={location.value}>
+                                        {location.label}
+                                    </option>
+                                ))}
+                            </select>
+                            <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1">Relevant to You</p>
+                    </div>
+
+                    {/* Category Dropdown */}
+                    <div className="relative">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Category
+                        </label>
+                        <div className="relative">
+                            <select 
+                                value={selectedCategory}
+                                onChange={(e) => {
+                                    setSelectedCategory(e.target.value);
+                                    setTimeout(handleFilterChange, 0);
+                                }}
+                                className="w-full px-4 py-3 border border-gray-300 rounded-lg appearance-none bg-white focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                            >
+                                {categories.map(category => (
+                                    <option key={category.value} value={category.value}>
+                                        {category.label}
+                                    </option>
+                                ))}
+                            </select>
+                            <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1">Fill Your Vibe</p>
+                    </div>
+
+                    {/* Date Picker */}
+                    <div className="relative">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Date
+                        </label>
+                        <div className="relative">
+                            <input 
+                                type="date"
+                                value={selectedDate}
+                                onChange={(e) => {
+                                    setSelectedDate(e.target.value);
+                                    setTimeout(handleFilterChange, 0);
+                                }}
+                                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                                placeholder="dd/mm/yyyy"
+                            />
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1">Your Perfect Date</p>
+                    </div>
+
+                    {/* Search Button */}
+                    <div className="relative">
+                        <button 
+                            onClick={handleFilterChange}
+                            className="w-full bg-emerald-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-emerald-700 transition-colors flex items-center justify-center"
+                        >
+                            <Search size={20} className="mr-2" />
+                            Search
+                        </button>
+                        <p className="text-xs text-transparent mt-1">.</p>
+                    </div>
+                </div>
             </div>
         </div>
     );
@@ -594,9 +803,7 @@ function Footer() {
                             <li><a href="#" className="hover:text-white transition-colors">Hubungi Kami</a></li>
                             <li><a href="#" className="hover:text-white transition-colors">Pusat Bantuan</a></li>
                             <li><a href="#" className="hover:text-white transition-colors">Karier</a></li>
-                            <li><a href="#" className="hover:text-white transition-colors">Cicilan</a></li>
                             <li><a href="#" className="hover:text-white transition-colors">Tentang Kami</a></li>
-                            <li><a href="#" className="hover:text-white transition-colors">Rilisan Fitur Terbaru</a></li>
                         </ul>
 
                         <div className="mt-6">
@@ -637,14 +844,9 @@ function Footer() {
                             <li><a href="#" className="hover:text-white transition-colors">Event Budaya</a></li>
                             <li><a href="#" className="hover:text-white transition-colors">Tiket Pertunjukan</a></li>
                             <li><a href="#" className="hover:text-white transition-colors">Festival</a></li>
-                            <li><a href="#" className="hover:text-white transition-colors">Workshop</a></li>
                             <li><a href="#" className="hover:text-white transition-colors">Pameran Seni</a></li>
-                            <li><a href="#" className="hover:text-white transition-colors">Konser Musik</a></li>
-                            <li><a href="#" className="hover:text-white transition-colors">Teater</a></li>
                             <li><a href="#" className="hover:text-white transition-colors">Tari Tradisional</a></li>
-                            <li><a href="#" className="hover:text-white transition-colors">Xperience</a></li>
                             <li><a href="#" className="hover:text-white transition-colors">Paket Wisata</a></li>
-                            <li><a href="#" className="hover:text-white transition-colors">Gift Voucher</a></li>
                         </ul>
                     </div>
 
@@ -657,12 +859,9 @@ function Footer() {
                             <li><a href="#" className="hover:text-white transition-colors">Blog LokaBudaya</a></li>
                             <li><a href="#" className="hover:text-white transition-colors">Pemberitahuan Privasi</a></li>
                             <li><a href="#" className="hover:text-white transition-colors">Syarat & Ketentuan</a></li>
-                            <li><a href="#" className="hover:text-white transition-colors">Daftarkan Akomodasi Anda</a></li>
                             <li><a href="#" className="hover:text-white transition-colors">Daftarkan Bisnis Aktivitas Anda</a></li>
                             <li><a href="#" className="hover:text-white transition-colors">LokaBudaya Press Room</a></li>
                             <li><a href="#" className="hover:text-white transition-colors">LokaBudaya Ads</a></li>
-                            <li><a href="#" className="hover:text-white transition-colors">Vulnerability Disclosure Program</a></li>
-                            <li><a href="#" className="hover:text-white transition-colors">APAC Travel Insights</a></li>
                         </ul>
 
                         <div className="mt-6">
