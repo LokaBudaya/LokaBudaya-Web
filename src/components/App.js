@@ -2789,11 +2789,11 @@ function Navbar({ user, userData, navigate }) {
                                 <div className="flex flex-col space-y-2 border-t pt-4">
                                     <button onClick={() => navigate('login')} 
                                             className="px-4 py-2 text-emerald-600 border border-emerald-600 rounded-full font-medium">
-                                        Sign In
+                                        Log In
                                     </button>
                                     <button onClick={() => navigate('register')} 
                                             className="px-4 py-2 bg-emerald-600 text-white rounded-full font-medium">
-                                        Log In
+                                        Sign Up
                                     </button>
                                 </div>
                             )}
