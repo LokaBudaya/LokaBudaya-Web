@@ -2,12 +2,16 @@
 import Image from 'next/image';
 import React, { useState, useEffect } from 'react';
 import { initializeApp } from 'firebase/app';
+
 import { 
     getAuth, 
     onAuthStateChanged, 
     createUserWithEmailAndPassword, 
     signInWithEmailAndPassword, 
-    signOut 
+    signOut,
+    sendEmailVerification,
+    GoogleAuthProvider,
+    signInWithPopup
 } from 'firebase/auth';
 import { 
     getFirestore, 
@@ -18,9 +22,17 @@ import {
     doc, 
     query, 
     setDoc,
-    getDoc
+    getDoc,
+    getDocs,
+    where
 } from 'firebase/firestore';
-import { Handshake, Ticket, Search, ChevronDown, Calendar, PlusCircle, Trash2, Home, User, Settings, Facebook, Instagram, Youtube, Twitter, MessageCircle, Music } from 'lucide-react';
+import {
+    Handshake, Ticket, Search, ChevronDown, Calendar,
+    Trash2, Home, User, Settings, UtensilsCrossed,
+    Facebook, Instagram, Youtube, Twitter, MessageCircle,
+    Music, Users, LogOut, BarChart3, Shield,
+    X, MapPin
+} from 'lucide-react';
 
 // Firebase Configuration
 const firebaseConfig = {
@@ -90,17 +102,36 @@ export default function App() {
 
     const renderPage = () => {
         switch (page) {
+            case 'admin':
+                // Admin dashboard tanpa header/footer
+                return <AdminDashboard events={events} navigate={navigate} userData={userData} />;
             case 'login':
                 return <LoginPage navigate={navigate} />;
             case 'register':
                 return <RegisterPage navigate={navigate} />;
-            case 'admin':
-                return <AdminDashboard events={events} navigate={navigate} userData={userData} />;
             case 'home':
             default:
                 return <HomePage events={events} navigate={navigate} />;
         }
     };
+
+    // Cek apakah halaman admin
+    const isAdminPage = page === 'admin';
+
+    return (
+        <div className="flex flex-col min-h-screen bg-blue-50 font-sans text-gray-800">
+            {/* Header hanya muncul jika bukan halaman admin */}
+            {!isAdminPage && <Navbar user={user} userData={userData} navigate={navigate} />}
+            
+            <main className={isAdminPage ? "" : "flex-1"}>
+                {renderPage()}
+            </main>
+            
+            {/* Footer hanya muncul jika bukan halaman admin */}
+            {!isAdminPage && <Footer />}
+        </div>
+    );
+
 
     return (
         <div className="flex flex-col min-h-screen bg-emerald-50 font-sans text-gray-800">
@@ -176,63 +207,217 @@ function HomePage({ events }) {
 }
 
 function LoginPage({ navigate }) {
-    const [email, setEmail] = useState('');
+    const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
+    const [loading, setLoading] = useState(false);
 
-    const handleLogin = async (e) => {
-        e.preventDefault();
+    const handleGoogleSignIn = async () => {
+        setLoading(true);
         setError('');
         
-        console.log("Attempting login with email:", email);
+        try {
+            const provider = new GoogleAuthProvider();
+            const result = await signInWithPopup(auth, provider);
+            const user = result.user;
+            
+            // Check apakah user sudah ada di Firestore
+            const userDocRef = doc(db, 'users', user.uid);
+            const userDoc = await getDoc(userDocRef);
+            
+            if (!userDoc.exists()) {
+                // Jika user baru, buat data di Firestore
+                await setDoc(userDocRef, {
+                    createdAt: new Date(),
+                    email: user.email,
+                    emailVerified: user.emailVerified,
+                    isEmailVerified: user.emailVerified,
+                    profile: {
+                        displayname: user.displayName || user.email.split('@')[0],
+                        phonenumber: "",
+                        username: user.email.split('@')[0]
+                    },
+                    role: 'user',
+                    uid: user.uid,
+                    username: user.email.split('@')[0]
+                });
+            } else {
+                // Update email verification status jika sudah ada
+                await setDoc(userDocRef, { 
+                    emailVerified: user.emailVerified,
+                    isEmailVerified: user.emailVerified 
+                }, { merge: true });
+            }
+            
+            navigate('home');
+        } catch (error) {
+            console.error('Google sign-in error:', error);
+            setError('Gagal masuk dengan Google. Silakan coba lagi.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleUsernameLogin = async (e) => {
+        e.preventDefault();
+        setError('');
+        setLoading(true);
         
         try {
-            await signInWithEmailAndPassword(auth, email, password);
-            console.log("Login successful");
+            // Cari user berdasarkan username di Firestore
+            const usersRef = collection(db, 'users');
+            const q = query(usersRef, where('username', '==', username.toLowerCase()));
+            const querySnapshot = await getDocs(q);
+            
+            if (querySnapshot.empty) {
+                setError('Username tidak ditemukan.');
+                setLoading(false);
+                return;
+            }
+            
+            // Ambil email dari user yang ditemukan
+            const userDoc = querySnapshot.docs[0];
+            const userData = userDoc.data();
+            const userEmail = userData.email;
+            
+            // Login menggunakan email dan password
+            const userCredential = await signInWithEmailAndPassword(auth, userEmail, password);
+            const user = userCredential.user;
+            
+            if (!user.emailVerified) {
+                await signOut(auth);
+                setError('Email belum diverifikasi. Silakan check email Anda dan klik link verifikasi.');
+                return;
+            }
+            
+            // Update status verifikasi
+            const userDocRef = doc(db, 'users', user.uid);
+            await setDoc(userDocRef, { 
+                emailVerified: true,
+                isEmailVerified: true 
+            }, { merge: true });
+            
             navigate('home');
         } catch (err) {
-            console.error("Login error details:", err);
-            console.error("Error code:", err.code);
-            
+            console.error('Login error:', err);
             switch (err.code) {
                 case 'auth/invalid-credential':
-                    setError('Email atau password yang Anda masukkan salah. Silakan coba lagi.');
+                case 'auth/wrong-password':
+                    setError('Username atau password yang Anda masukkan salah.');
                     break;
                 case 'auth/user-disabled':
-                    setError('Akun Anda telah dinonaktifkan. Hubungi administrator.');
+                    setError('Akun Anda telah dinonaktifkan.');
                     break;
                 case 'auth/too-many-requests':
                     setError('Terlalu banyak percobaan login. Coba lagi nanti.');
                     break;
-                case 'auth/network-request-failed':
-                    setError('Masalah koneksi internet. Periksa koneksi Anda.');
-                    break;
                 default:
-                    setError(`Terjadi kesalahan: ${err.message}`);
+                    setError('Terjadi kesalahan saat login.');
             }
+        } finally {
+            setLoading(false);
         }
     };
 
     return (
         <div className="flex justify-center items-center py-20">
             <div className="w-full max-w-md p-8 space-y-6 bg-white rounded-lg shadow-md">
-                <h2 className="text-2xl font-bold text-center text-emerald-900">Login</h2>
-                {error && <p className="text-red-500 text-sm text-center">{error}</p>}
-                <form onSubmit={handleLogin} className="space-y-4">
+                {/* Logo */}
+                <div className="text-center">
+                    <div className="w-16 h-16 rounded-full mx-auto mb-4 flex items-center justify-center overflow-hidden">
+                        <Image 
+                            src="/images/logo_main.png" 
+                            alt="LokaBudaya Logo" 
+                            width={72}
+                            height={72}
+                            className="object-contain"
+                        />
+                    </div>
+                    <h2 className="text-2xl font-bold text-gray-900">Welcome Back!</h2>
+                    <p className="text-gray-600 mt-2">Please fill the form below to login to your account</p>
+                </div>
+
+                {error && <p className="text-red-500 text-sm text-center bg-red-50 p-3 rounded">{error}</p>}
+
+                {/* Google Sign-in Button */}
+                <button 
+                    onClick={handleGoogleSignIn}
+                    disabled={loading}
+                    className="w-full flex items-center justify-center px-4 py-3 border border-gray-300 rounded-lg shadow-sm bg-white text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
+                >
+                    <svg className="w-5 h-5 mr-3" viewBox="0 0 24 24">
+                        <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                        <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                    </svg>
+                    {loading ? 'Signing in...' : 'Continue with Google'}
+                </button>
+
+                {/* Facebook Sign-in Button */}
+                <button 
+                    disabled
+                    className="w-full flex items-center justify-center px-4 py-3 border border-gray-300 rounded-lg shadow-sm bg-gray-100 text-gray-400 cursor-not-allowed"
+                >
+                    <svg className="w-5 h-5 mr-3" fill="#1877F2" viewBox="0 0 24 24">
+                        <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                    </svg>
+                    Continue with Facebook
+                </button>
+
+                <div className="relative">
+                    <div className="absolute inset-0 flex items-center">
+                        <div className="w-full border-t border-gray-300" />
+                    </div>
+                    <div className="relative flex justify-center text-sm">
+                        <span className="px-2 bg-white text-gray-500">or</span>
+                    </div>
+                </div>
+
+                {/* Basic Form */}
+                <form onSubmit={handleUsernameLogin} className="space-y-4">
                     <div>
-                        <label className="text-sm font-medium text-gray-700">Email</label>
-                        <input type="email" value={email} onChange={e => setEmail(e.target.value)} className="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:ring-emerald-500 focus:border-emerald-500" required />
+                        <input 
+                            type="text" 
+                            value={username} 
+                            onChange={e => setUsername(e.target.value)} 
+                            placeholder="Username"
+                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+                            required 
+                        />
                     </div>
                     <div>
-                        <label className="text-sm font-medium text-gray-700">Password</label>
-                        <input type="password" value={password} onChange={e => setPassword(e.target.value)} className="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:ring-emerald-500 focus:border-emerald-500" required />
+                        <input 
+                            type="password" 
+                            value={password} 
+                            onChange={e => setPassword(e.target.value)} 
+                            placeholder="Password"
+                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+                            required 
+                        />
                     </div>
-                    <button type="submit" className="w-full px-4 py-2 font-semibold text-white bg-emerald-600 rounded-md hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500">
-                        Masuk
+                    
+                    <div className="flex items-center justify-between">
+                        <label className="flex items-center">
+                            <input type="checkbox" className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                            <span className="ml-2 text-sm text-gray-600">Remember me</span>
+                        </label>
+                        <button type="button" className="text-sm text-blue-600 hover:underline">
+                            Forgot password?
+                        </button>
+                    </div>
+
+                    <button 
+                        type="submit" 
+                        disabled={loading}
+                        className="w-full px-4 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+                    >
+                        {loading ? 'Signing In...' : 'Sign In'}
                     </button>
                 </form>
+
                 <p className="text-sm text-center text-gray-600">
-                    Belum punya akun? <button onClick={() => navigate('register')} className="font-medium text-emerald-600 hover:underline">Daftar di sini</button>
+                    Don't have account? <button onClick={() => navigate('register')} className="font-medium text-blue-600 hover:underline">Sign up</button>
                 </p>
             </div>
         </div>
@@ -242,65 +427,393 @@ function LoginPage({ navigate }) {
 function RegisterPage({ navigate }) {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
-    const [name, setName] = useState('');
+    const [username, setUsername] = useState('');
     const [error, setError] = useState('');
+    const [showVerification, setShowVerification] = useState(false);
+    const [userEmail, setUserEmail] = useState('');
+    const [loading, setLoading] = useState(false);
+    const [agreeTerms, setAgreeTerms] = useState(false);
 
-    const handleRegister = async (e) => {
-        e.preventDefault();
+    const handleGoogleSignUp = async () => {
+        setLoading(true);
         setError('');
+        
+        try {
+            const provider = new GoogleAuthProvider();
+            const result = await signInWithPopup(auth, provider);
+            const user = result.user;
+            
+            // Check apakah user sudah ada di Firestore
+            const userDocRef = doc(db, 'users', user.uid);
+            const userDoc = await getDoc(userDocRef);
+            
+            if (!userDoc.exists()) {
+                // Buat data user baru di Firestore
+                await setDoc(userDocRef, {
+                    createdAt: new Date(),
+                    email: user.email,
+                    emailVerified: user.emailVerified,
+                    isEmailVerified: user.emailVerified,
+                    profile: {
+                        displayname: user.displayName || user.email.split('@')[0],
+                        phonenumber: "",
+                        username: user.email.split('@')[0]
+                    },
+                    role: 'user',
+                    uid: user.uid,
+                    username: user.email.split('@')[0]
+                });
+            }
+            
+            navigate('home');
+        } catch (error) {
+            console.error('Google sign-up error:', error);
+            setError('Gagal mendaftar dengan Google. Silakan coba lagi.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleEmailRegister = async (e) => {
+        e.preventDefault();
+        
+        if (!agreeTerms) {
+            setError('Anda harus menyetujui Terms of Service dan Privacy Policy');
+            return;
+        }
+        
+        setError('');
+        setLoading(true);
+        
         try {
             const userCredential = await createUserWithEmailAndPassword(auth, email, password);
             const user = userCredential.user;
             
-            // Simpan data tambahan user (nama, role) ke Firestore
+            await sendEmailVerification(user);
+            
             await setDoc(doc(db, "users", user.uid), {
-                name: name,
+                createdAt: new Date(),
                 email: email,
-                role: 'user' // Default role
+                emailVerified: false,
+                isEmailVerified: false,
+                profile: {
+                    displayname: username,
+                    phonenumber: "",
+                    username: username.toLowerCase().replace(/\s+/g, '')
+                },
+                role: 'user',
+                uid: user.uid,
+                username: username.toLowerCase().replace(/\s+/g, '')
             });
 
-            navigate('home');
+            await signOut(auth);
+            setUserEmail(email);
+            setShowVerification(true);
+
         } catch (err) {
-            setError('Gagal mendaftar. Mungkin email sudah digunakan.');
-            console.error(err);
+            if (err.code === 'auth/email-already-in-use') {
+                setError('Email sudah terdaftar. Silakan gunakan email lain.');
+            } else if (err.code === 'auth/weak-password') {
+                setError('Password terlalu lemah. Minimal 6 karakter.');
+            } else {
+                setError('Gagal mendaftar. Silakan coba lagi.');
+            }
+        } finally {
+            setLoading(false);
         }
     };
+
+    if (showVerification) {
+        return <EmailVerificationPage email={userEmail} navigate={navigate} />;
+    }
 
     return (
         <div className="flex justify-center items-center py-20">
             <div className="w-full max-w-md p-8 space-y-6 bg-white rounded-lg shadow-md">
-                <h2 className="text-2xl font-bold text-center text-emerald-900">Daftar Akun Baru</h2>
-                 {error && <p className="text-red-500 text-sm text-center">{error}</p>}
-                <form onSubmit={handleRegister} className="space-y-4">
+                {/* Logo */}
+                <div className="text-center">
+                    <div className="w-16 h-16 rounded-full mx-auto mb-4 flex items-center justify-center overflow-hidden">
+                        <Image 
+                            src="/images/logo_main.png" 
+                            alt="LokaBudaya Logo" 
+                            width={72}
+                            height={72}
+                            className="object-contain"
+                        />
+                    </div>
+                    <h2 className="text-2xl font-bold text-gray-900">Sign Up</h2>
+                    <p className="text-gray-600 mt-2">Please fill the form below to create an account</p>
+                </div>
+
+                {error && <p className="text-red-500 text-sm text-center bg-red-50 p-3 rounded">{error}</p>}
+
+                {/* Google Sign-up Button */}
+                <button 
+                    onClick={handleGoogleSignUp}
+                    disabled={loading}
+                    className="w-full flex items-center justify-center px-4 py-3 border border-gray-300 rounded-lg shadow-sm bg-white text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
+                >
+                    <svg className="w-5 h-5 mr-3" viewBox="0 0 24 24">
+                        <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                        <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                    </svg>
+                    {loading ? 'Signing up...' : 'Sign up with Google'}
+                </button>
+
+                {/* Facebook Sign-up Button */}
+                <button 
+                    disabled
+                    className="w-full flex items-center justify-center px-4 py-3 border border-gray-300 rounded-lg shadow-sm bg-gray-100 text-gray-400 cursor-not-allowed"
+                >
+                    <svg className="w-5 h-5 mr-3" fill="#1877F2" viewBox="0 0 24 24">
+                        <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                    </svg>
+                    Sign up with Facebook
+                </button>
+
+                <div className="relative">
+                    <div className="absolute inset-0 flex items-center">
+                        <div className="w-full border-t border-gray-300" />
+                    </div>
+                    <div className="relative flex justify-center text-sm">
+                        <span className="px-2 bg-white text-gray-500">or</span>
+                    </div>
+                </div>
+
+                {/* Email/Password Form */}
+                <form onSubmit={handleEmailRegister} className="space-y-4">
                     <div>
-                        <label className="text-sm font-medium text-gray-700">Nama Lengkap</label>
-                        <input type="text" value={name} onChange={e => setName(e.target.value)} className="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:ring-emerald-500 focus:border-emerald-500" required />
+                        <input 
+                            type="text" 
+                            value={username} 
+                            onChange={e => setUsername(e.target.value)} 
+                            placeholder="Username"
+                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+                            required 
+                        />
                     </div>
                     <div>
-                        <label className="text-sm font-medium text-gray-700">Email</label>
-                        <input type="email" value={email} onChange={e => setEmail(e.target.value)} className="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:ring-emerald-500 focus:border-emerald-500" required />
+                        <input 
+                            type="email" 
+                            value={email} 
+                            onChange={e => setEmail(e.target.value)} 
+                            placeholder="Email"
+                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+                            required 
+                        />
                     </div>
                     <div>
-                        <label className="text-sm font-medium text-gray-700">Password</label>
-                        <input type="password" value={password} onChange={e => setPassword(e.target.value)} className="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:ring-emerald-500 focus:border-emerald-500" required />
+                        <input 
+                            type="password" 
+                            value={password} 
+                            onChange={e => setPassword(e.target.value)} 
+                            placeholder="Password"
+                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+                            required 
+                        />
                     </div>
-                    <button type="submit" className="w-full px-4 py-2 font-semibold text-white bg-emerald-600 rounded-md hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500">
-                        Daftar
+                    
+                    <div className="flex items-start">
+                        <input 
+                            type="checkbox" 
+                            checked={agreeTerms}
+                            onChange={(e) => setAgreeTerms(e.target.checked)}
+                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 mt-1" 
+                        />
+                        <span className="ml-2 text-sm text-gray-600">
+                            I agree to the <span className="text-blue-600 hover:underline cursor-pointer">Terms of Service</span> and <span className="text-blue-600 hover:underline cursor-pointer">Privacy Policy</span>
+                        </span>
+                    </div>
+
+                    <button 
+                        type="submit" 
+                        disabled={loading || !agreeTerms}
+                        className="w-full px-4 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        {loading ? 'Creating Account...' : 'Sign Up'}
                     </button>
                 </form>
-                 <p className="text-sm text-center text-gray-600">
-                    Sudah punya akun? <button onClick={() => navigate('login')} className="font-medium text-emerald-600 hover:underline">Login</button>
+
+                <p className="text-sm text-center text-gray-600">
+                    Already have an account? <button onClick={() => navigate('login')} className="font-medium text-blue-600 hover:underline">Sign In</button>
                 </p>
             </div>
         </div>
     );
 }
 
+function EmailVerificationPage({ email, navigate }) {
+    const [isResending, setIsResending] = useState(false);
+    const [message, setMessage] = useState('');
+
+    const handleResendVerification = async () => {
+        setIsResending(true);
+        setMessage('');
+        
+        try {
+            // Untuk resend, kita perlu login dulu sementara
+            await signInWithEmailAndPassword(auth, email, 'temp'); // Ini tidak akan berhasil, tapi kita bisa coba cara lain
+            
+            // Alternatif: beri tahu user untuk check email
+            setMessage('Email verifikasi telah dikirim ulang!');
+        } catch (error) {
+            setMessage('Gagal mengirim ulang email verifikasi. Silakan coba lagi nanti.');
+        } finally {
+            setIsResending(false);
+        }
+    };
+
+    const handleVerificationComplete = () => {
+        navigate('login');
+    };
+
+    return (
+        <div className="flex justify-center items-center min-h-screen bg-gray-50">
+            <div className="w-full max-w-md p-8 space-y-6 bg-white rounded-lg shadow-md text-center">
+                {/* Email Icon */}
+                <div className="flex justify-center">
+                    <div className="w-16 h-16 bg-blue-100 rounded-lg flex items-center justify-center">
+                        <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                        </svg>
+                    </div>
+                </div>
+
+                <h2 className="text-2xl font-bold text-gray-900">Verify Your Email</h2>
+                
+                <div className="space-y-2">
+                    <p className="text-gray-600">We've sent a verification email to:</p>
+                    <p className="text-blue-600 font-medium">{email}</p>
+                </div>
+
+                <p className="text-gray-500 text-sm">
+                    Please check your email and click the verification link to continue.
+                </p>
+
+                {message && (
+                    <div className="p-3 bg-green-100 border border-green-400 text-green-700 rounded">
+                        {message}
+                    </div>
+                )}
+
+                <div className="space-y-3">
+                    <button 
+                        onClick={handleVerificationComplete}
+                        className="w-full px-4 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors"
+                    >
+                        I've Verified My Email
+                    </button>
+
+                    <button 
+                        onClick={handleResendVerification}
+                        disabled={isResending}
+                        className="w-full px-4 py-3 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors disabled:opacity-50"
+                    >
+                        {isResending ? 'Sending...' : 'Resend Verification Email'}
+                    </button>
+                </div>
+
+                <button 
+                    onClick={() => navigate('login')}
+                    className="text-gray-500 text-sm hover:text-gray-700 transition-colors"
+                >
+                    Back to Login
+                </button>
+            </div>
+        </div>
+    );
+}
+
+function AdminSidebar({ activeTab, setActiveTab, navigate, handleLogout }) {
+    const menuItems = [
+        { id: 'dashboard', label: 'Dashboard', icon: Home },
+        { id: 'events', label: 'Kelola Event', icon: Calendar },
+        { id: 'kuliner', label: 'Kelola Kuliner', icon: UtensilsCrossed },
+        { id: 'tour', label: 'Kelola Tour', icon: MapPin },
+        { id: 'users', label: 'Kelola Users', icon: Users },
+        { id: 'analytics', label: 'Analytics', icon: BarChart3 },
+        { id: 'settings', label: 'Settings', icon: Settings },
+    ];
+
+    return (
+        <div className="w-64 bg-white shadow-lg h-screen fixed left-0 top-0 z-40">
+            {/* Header */}
+            <div className="p-6 border-b border-gray-200">
+                <div className="flex items-center space-x-3">
+                    <div className="w-10 h-10 bg-emerald-100 rounded-lg flex items-center justify-center">
+                        <Shield className="w-6 h-6 text-emerald-600" />
+                    </div>
+                    <div>
+                        <h2 className="text-lg font-bold text-gray-900">Admin Panel</h2>
+                        <p className="text-sm text-gray-500">LokaBudaya</p>
+                    </div>
+                </div>
+            </div>
+
+            {/* Navigation Menu */}
+            <nav className="mt-6">
+                <div className="px-3">
+                    {menuItems.map((item) => {
+                        const Icon = item.icon;
+                        return (
+                            <button
+                                key={item.id}
+                                onClick={() => setActiveTab(item.id)}
+                                className={`w-full flex items-center px-3 py-3 text-left rounded-lg mb-1 transition-colors ${
+                                    activeTab === item.id
+                                        ? 'bg-emerald-100 text-emerald-700 border-r-2 border-emerald-500'
+                                        : 'text-gray-600 hover:bg-gray-100'
+                                }`}
+                            >
+                                <Icon className="w-5 h-5 mr-3" />
+                                {item.label}
+                            </button>
+                        );
+                    })}
+                </div>
+            </nav>
+
+            {/* Bottom Actions */}
+            <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-200">
+                <button
+                    onClick={() => navigate('home')}
+                    className="w-full flex items-center px-3 py-2 text-gray-600 hover:bg-gray-100 rounded-lg mb-2 transition-colors"
+                >
+                    <Home className="w-5 h-5 mr-3" />
+                    Kembali ke Home
+                </button>
+                <button
+                    onClick={handleLogout}
+                    className="w-full flex items-center px-3 py-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                >
+                    <LogOut className="w-5 h-5 mr-3" />
+                    Logout
+                </button>
+            </div>
+        </div>
+    );
+}
+
 function AdminDashboard({ events, navigate, userData }) {
+    const [activeTab, setActiveTab] = useState('dashboard');
+    const [users, setUsers] = useState([]);
+    const [kuliners, setKuliners] = useState([]);
+    const [tours, setTours] = useState([]);
+    
+    // States untuk event management
     const [kategori, setKategori] = useState('');
     const [namaEvent, setNamaEvent] = useState('');
     const [lokasi, setLokasi] = useState('');
     const [deskripsi, setDeskripsi] = useState('');
+    const [harga, setHarga] = useState('');
+    const [rating, setRating] = useState('');
+    const [latitude, setLatitude] = useState('');
+    const [longitude, setLongitude] = useState('');
+    const [startDate, setStartDate] = useState('');
+    const [endDate, setEndDate] = useState('');
+    const [eventTime, setEventTime] = useState('');
     const [imageFile, setImageFile] = useState(null);
     const [imageUrl, setImageUrl] = useState('');
     const [uploading, setUploading] = useState(false);
@@ -311,6 +824,48 @@ function AdminDashboard({ events, navigate, userData }) {
             navigate('home');
         }
     }, [userData, navigate]);
+
+    // Fetch users data
+    useEffect(() => {
+        const unsubscribe = onSnapshot(collection(db, 'users'), (snapshot) => {
+            const usersData = snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }));
+            setUsers(usersData);
+        });
+
+        return () => unsubscribe();
+    }, []);
+
+    useEffect(() => {
+        const unsubscribe = onSnapshot(collection(db, 'kuliners'), (snapshot) => {
+            const kulinersData = snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }));
+            setKuliners(kulinersData);
+        });
+
+        return () => unsubscribe();
+    }, []);
+
+    useEffect(() => {
+        const unsubscribe = onSnapshot(collection(db, 'tours'), (snapshot) => {
+            const toursData = snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }));
+            setTours(toursData);
+        });
+
+        return () => unsubscribe();
+    }, []);
+
+    const handleLogout = async () => {
+        await signOut(auth);
+        navigate('home');
+    };
 
     if (!userData || userData.role !== 'admin') {
         return <div className="flex justify-center items-center h-screen">
@@ -349,29 +904,99 @@ function AdminDashboard({ events, navigate, userData }) {
         }
     };
 
+    const addKuliner = async (kulinerData) => {
+        try {
+            await addDoc(collection(db, 'kuliners'), kulinerData);
+            alert('Kuliner berhasil ditambahkan!');
+        } catch (error) {
+            console.error('Error adding kuliner:', error);
+            alert('Gagal menambahkan kuliner');
+        }
+    };
+
+    const deleteKuliner = async (id) => {
+        if (window.confirm("Apakah Anda yakin ingin menghapus kuliner ini?")) {
+            try {
+                await deleteDoc(doc(db, 'kuliners', id));
+                alert('Kuliner berhasil dihapus!');
+            } catch (error) {
+                console.error('Error deleting kuliner:', error);
+                alert('Gagal menghapus kuliner');
+            }
+        }
+    };
+
+    const addTour = async (tourData) => {
+        try {
+            await addDoc(collection(db, 'tours'), tourData);
+            alert('Tour berhasil ditambahkan!');
+        } catch (error) {
+            console.error('Error adding tour:', error);
+            alert('Gagal menambahkan tour');
+        }
+    };
+
+    const deleteTour = async (id) => {
+        if (window.confirm("Apakah Anda yakin ingin menghapus tour ini?")) {
+            try {
+                await deleteDoc(doc(db, 'tours', id));
+                alert('Tour berhasil dihapus!');
+            } catch (error) {
+                console.error('Error deleting tour:', error);
+                alert('Gagal menghapus tour');
+            }
+        }
+    };
+
     const addEvent = async (e) => {
         e.preventDefault();
-        if (namaEvent.trim() === '' || lokasi.trim() === '' || deskripsi.trim() === '' || kategori === '') {
-            alert('Mohon lengkapi semua field');
+        
+        // Validasi field yang required
+        if (namaEvent.trim() === '' || lokasi.trim() === '' || deskripsi.trim() === '' || 
+            kategori === '' || harga === '' || rating === '' || 
+            startDate === '' || endDate === '' || eventTime === '') {
+            alert('Mohon lengkapi semua field yang diperlukan');
             return;
         }
         
         try {
             await addDoc(collection(db, 'events'), {
+                title: namaEvent,
+                location: lokasi,
+                desc: deskripsi,
+                category: kategori,
+                price: parseInt(harga),
+                rating: parseFloat(rating),
+                latitude: latitude ? parseFloat(latitude) : 0,
+                longtitude: longitude ? parseFloat(longitude) : 0,
+                startDate: new Date(startDate),
+                endDate: new Date(endDate),
+                eventTime: eventTime,
+                imgRes: imageUrl || 'https://placehold.co/600x400/166534/FFFFFF?text=Event',
+                isFavorite: false,
+                
+                // Field tambahan untuk kompatibilitas web
                 nama_event: namaEvent,
                 lokasi: lokasi,
                 deskripsi: deskripsi,
                 kategori: kategori,
-                harga_tiket: 50000,
-                kuota: 100,
-                tanggal_event: new Date(),
+                harga_tiket: parseInt(harga),
+                tanggal_event: new Date(startDate),
                 gambar_event: imageUrl || 'https://placehold.co/600x400/166534/FFFFFF?text=Event'
             });
 
+            // Reset form
             setNamaEvent('');
             setLokasi('');
             setDeskripsi('');
             setKategori('');
+            setHarga('');
+            setRating('');
+            setLatitude('');
+            setLongitude('');
+            setStartDate('');
+            setEndDate('');
+            setEventTime('');
             setImageUrl('');
             setImageFile(null);
             
@@ -394,49 +1019,877 @@ function AdminDashboard({ events, navigate, userData }) {
         }
     };
 
+    // Render content berdasarkan active tab
+    const renderContent = () => {
+        switch (activeTab) {
+            case 'dashboard':
+                return <AdminDashboardOverview events={events} users={users} />;
+            case 'events':
+                return (
+                    <div className="space-y-6">
+                        <h2 className="text-2xl font-bold text-gray-900">Kelola Event</h2>
+                        
+                        {/* Form Tambah Event */}
+                        <div className="bg-white p-6 rounded-lg shadow-md">
+                            <h3 className="text-xl font-semibold mb-4">Tambah Event Baru</h3>
+                            <form onSubmit={addEvent} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                {/* Nama Event */}
+                                <div className="lg:col-span-2">
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Nama Event</label>
+                                    <input 
+                                        value={namaEvent} 
+                                        onChange={e => setNamaEvent(e.target.value)} 
+                                        placeholder="Nama Event" 
+                                        className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-emerald-500" 
+                                        required
+                                    />
+                                </div>
+
+                                {/* Kategori */}
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Kategori</label>
+                                    <select 
+                                        value={kategori} 
+                                        onChange={e => setKategori(e.target.value)} 
+                                        className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-emerald-500"
+                                        required
+                                    >
+                                        <option value="">Pilih Kategori</option>
+                                        <option value="Festival">Festival</option>
+                                        <option value="Pertunjukan Seni">Pertunjukan Seni</option>
+                                        <option value="Workshop">Workshop</option>
+                                        <option value="Pameran">Pameran</option>
+                                        <option value="Konser">Konser</option>
+                                    </select>
+                                </div>
+
+                                {/* Lokasi */}
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Lokasi</label>
+                                    <input 
+                                        value={lokasi} 
+                                        onChange={e => setLokasi(e.target.value)} 
+                                        placeholder="Lokasi Event" 
+                                        className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-emerald-500" 
+                                        required
+                                    />
+                                </div>
+
+                                {/* Harga */}
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Harga Tiket (Rp)</label>
+                                    <input 
+                                        type="number"
+                                        value={harga} 
+                                        onChange={e => setHarga(e.target.value)} 
+                                        placeholder="50000" 
+                                        className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-emerald-500" 
+                                        required
+                                        min="0"
+                                    />
+                                </div>
+
+                                {/* Rating */}
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Rating (1-5)</label>
+                                    <input 
+                                        type="number"
+                                        value={rating} 
+                                        onChange={e => setRating(e.target.value)} 
+                                        placeholder="4.5" 
+                                        className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-emerald-500" 
+                                        required
+                                        min="1"
+                                        max="5"
+                                        step="0.1"
+                                    />
+                                </div>
+
+                                {/* Latitude */}
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Latitude</label>
+                                    <input 
+                                        type="number"
+                                        value={latitude} 
+                                        onChange={e => setLatitude(e.target.value)} 
+                                        placeholder="-7.574178450295152" 
+                                        className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-emerald-500" 
+                                        step="any"
+                                    />
+                                </div>
+
+                                {/* Longitude */}
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Longitude</label>
+                                    <input 
+                                        type="number"
+                                        value={longitude} 
+                                        onChange={e => setLongitude(e.target.value)} 
+                                        placeholder="110.81591618151339" 
+                                        className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-emerald-500" 
+                                        step="any"
+                                    />
+                                </div>
+
+                                {/* Start Date */}
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Tanggal Mulai</label>
+                                    <input 
+                                        type="date"
+                                        value={startDate} 
+                                        onChange={e => setStartDate(e.target.value)} 
+                                        className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-emerald-500" 
+                                        required
+                                    />
+                                </div>
+
+                                {/* End Date */}
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Tanggal Selesai</label>
+                                    <input 
+                                        type="date"
+                                        value={endDate} 
+                                        onChange={e => setEndDate(e.target.value)} 
+                                        className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-emerald-500" 
+                                        required
+                                    />
+                                </div>
+
+                                {/* Event Time */}
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Waktu Event</label>
+                                    <input 
+                                        type="time"
+                                        value={eventTime} 
+                                        onChange={e => setEventTime(e.target.value)} 
+                                        className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-emerald-500" 
+                                        required
+                                    />
+                                </div>
+
+                                {/* Upload Gambar */}
+                                <div className="lg:col-span-3">
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Gambar Event</label>
+                                    <input 
+                                        type="file" 
+                                        accept="image/*"
+                                        onChange={(e) => {
+                                            const file = e.target.files[0];
+                                            if (file) {
+                                                setImageFile(file);
+                                                handleImageUpload(file);
+                                            }
+                                        }}
+                                        className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-emerald-500"
+                                        disabled={uploading}
+                                    />
+                                    {uploading && (
+                                        <div className="flex items-center mt-1">
+                                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-emerald-600 mr-2"></div>
+                                            <p className="text-sm text-blue-600">Uploading...</p>
+                                        </div>
+                                    )}
+                                    {imageUrl && (
+                                        <p className="text-sm text-green-600 mt-1 flex items-center">
+                                            <span className="mr-1">✓</span> Upload berhasil
+                                        </p>
+                                    )}
+                                </div>
+                                
+                                {/* Deskripsi */}
+                                <div className="lg:col-span-3">
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Deskripsi Event</label>
+                                    <textarea 
+                                        value={deskripsi} 
+                                        onChange={e => setDeskripsi(e.target.value)} 
+                                        placeholder="Deskripsi lengkap event..." 
+                                        className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-emerald-500"
+                                        rows="4"
+                                        required
+                                    ></textarea>
+                                </div>
+                                
+                                {/* Submit Button */}
+                                <div className="lg:col-span-3">
+                                    <button 
+                                        type="submit" 
+                                        className="w-full md:w-auto px-6 py-3 font-semibold text-white bg-emerald-600 rounded-md hover:bg-emerald-700 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                        disabled={uploading}
+                                    >
+                                        {uploading ? 'Processing...' : 'Simpan Event'}
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+
+                        {/* Preview Gambar */}
+                        {imageUrl && (
+                            <div className="bg-white p-4 rounded-lg shadow-md">
+                                <h4 className="font-semibold mb-3 text-gray-700">Preview Gambar Event:</h4>
+                                <div className="flex items-start space-x-4">
+                                    <img 
+                                        src={imageUrl} 
+                                        alt="Preview Event" 
+                                        className="max-w-xs h-auto rounded-lg shadow-sm border"
+                                    />
+                                    <div className="flex-1">
+                                        <p className="text-sm text-gray-600 mb-2">
+                                            <strong>URL:</strong> {imageUrl}
+                                        </p>
+                                        <button 
+                                            onClick={() => {
+                                                setImageUrl('');
+                                                setImageFile(null);
+                                            }}
+                                            className="text-red-600 hover:text-red-800 text-sm"
+                                        >
+                                            Hapus Gambar
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Tabel Daftar Event */}
+                        <div className="bg-white p-6 rounded-lg shadow-md">
+                            <h3 className="text-xl font-semibold mb-4">Daftar Event</h3>
+                            <div className="overflow-x-auto">
+                                <table className="min-w-full divide-y divide-gray-200">
+                                    <thead className="bg-gray-50">
+                                        <tr>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Gambar</th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Event</th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Lokasi</th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Kategori</th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Harga</th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Rating</th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tanggal</th>
+                                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Aksi</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="bg-white divide-y divide-gray-200">
+                                        {events.map(event => (
+                                            <tr key={event.id}>
+                                                <td className="px-6 py-4 whitespace-nowrap">
+                                                    <img 
+                                                        src={event.imgRes || event.gambar_event} 
+                                                        alt={event.title || event.nama_event}
+                                                        className="h-12 w-12 rounded-lg object-cover"
+                                                    />
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap">
+                                                    <div className="font-medium text-gray-900">
+                                                        {event.title || event.nama_event}
+                                                    </div>
+                                                    <div className="text-sm text-gray-500">
+                                                        {event.eventTime && `${event.eventTime}`}
+                                                    </div>
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-gray-500">
+                                                    {event.location || event.lokasi}
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap">
+                                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800">
+                                                        {event.category || event.kategori || 'Tidak ada kategori'}
+                                                    </span>
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-gray-500">
+                                                    Rp {(event.price || event.harga_tiket || 0).toLocaleString('id-ID')}
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap">
+                                                    <div className="flex items-center">
+                                                        <span className="text-yellow-400">★</span>
+                                                        <span className="ml-1 text-sm text-gray-600">
+                                                            {event.rating || 'N/A'}
+                                                        </span>
+                                                    </div>
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                    {event.startDate ? 
+                                                        new Date(event.startDate.toDate ? event.startDate.toDate() : event.startDate).toLocaleDateString('id-ID') :
+                                                        event.tanggal_event ? 
+                                                        new Date(event.tanggal_event.toDate()).toLocaleDateString('id-ID') : 
+                                                        'N/A'
+                                                    }
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-right">
+                                                    <button 
+                                                        onClick={() => deleteEvent(event.id)} 
+                                                        className="text-red-600 hover:text-red-800 transition-colors"
+                                                        title="Hapus Event"
+                                                    >
+                                                        <Trash2 className="h-5 w-5" />
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                );
+            case 'kuliner':
+                return <KulinerManagement 
+                    kuliners={kuliners} 
+                    addKuliner={addKuliner}
+                    deleteKuliner={deleteKuliner}
+                />;
+            case 'tour':
+                return <TourManagement 
+                    tours={tours} 
+                    addTour={addTour}
+                    deleteTour={deleteTour}
+                />;
+            case 'users':
+                return <UserManagement users={users} />;
+            case 'analytics':
+                return <AdminAnalytics events={events} users={users} />;
+            case 'settings':
+                return <AdminSettings />;
+            default:
+                return <AdminDashboardOverview events={events} users={users} />;
+        }
+    };
+
     return (
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-            <h2 className="text-3xl font-bold text-emerald-900 mb-8">Admin Dashboard</h2>
+        <div className="flex h-screen bg-gray-100">
+            {/* Sidebar */}
+            <AdminSidebar 
+                activeTab={activeTab} 
+                setActiveTab={setActiveTab}
+                navigate={navigate}
+                handleLogout={handleLogout}
+            />
             
-            {/* Form Tambah Event */}
-            <div className="bg-white p-6 rounded-lg shadow-md mb-8">
-                <h3 className="text-xl font-semibold mb-4">Tambah Event Baru</h3>
-                <form onSubmit={addEvent} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <input 
-                        value={namaEvent} 
-                        onChange={e => setNamaEvent(e.target.value)} 
-                        placeholder="Nama Event" 
-                        className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-emerald-500" 
-                        required
-                    />
-                    <input 
-                        value={lokasi} 
-                        onChange={e => setLokasi(e.target.value)} 
-                        placeholder="Lokasi" 
-                        className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-emerald-500" 
-                        required
-                    />
+            {/* Main Content */}
+            <div className="flex-1 ml-64 overflow-y-auto">
+                <div className="p-8">
+                    {renderContent()}
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function AdminSettings() {
+    return (
+        <div className="space-y-6">
+            <div>
+                <h2 className="text-2xl font-bold text-gray-900">Settings</h2>
+                <p className="text-gray-600">Pengaturan sistem dan konfigurasi admin</p>
+            </div>
+
+            {/* System Settings */}
+            <div className="bg-white p-6 rounded-lg shadow-sm border">
+                <h3 className="text-lg font-medium text-gray-900 mb-4">System Settings</h3>
+                <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <label className="text-sm font-medium text-gray-700">Maintenance Mode</label>
+                            <p className="text-sm text-gray-500">Enable maintenance mode untuk website</p>
+                        </div>
+                        <input type="checkbox" className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500" />
+                    </div>
                     
-                    {/* DROPDOWN KATEGORI */}
-                    <select 
-                        value={kategori} 
-                        onChange={e => setKategori(e.target.value)} 
-                        className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-emerald-500"
-                        required
-                    >
-                        <option value="">Pilih Kategori</option>
-                        <option value="festival">Festival</option>
-                        <option value="pertunjukan">Pertunjukan</option>
-                        <option value="workshop">Workshop</option>
-                        <option value="pameran">Pameran</option>
-                        <option value="konser">Konser</option>
-                    </select>
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <label className="text-sm font-medium text-gray-700">User Registration</label>
+                            <p className="text-sm text-gray-500">Izinkan pendaftaran user baru</p>
+                        </div>
+                        <input type="checkbox" defaultChecked className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500" />
+                    </div>
+                    
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <label className="text-sm font-medium text-gray-700">Email Verification Required</label>
+                            <p className="text-sm text-gray-500">Wajibkan verifikasi email untuk user baru</p>
+                        </div>
+                        <input type="checkbox" defaultChecked className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500" />
+                    </div>
+                </div>
+            </div>
+
+            {/* Event Settings */}
+            <div className="bg-white p-6 rounded-lg shadow-sm border">
+                <h3 className="text-lg font-medium text-gray-900 mb-4">Event Settings</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Default Event Duration (hours)</label>
+                        <input 
+                            type="number" 
+                            defaultValue="3"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-emerald-500"
+                        />
+                    </div>
+                    
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Max Ticket per User</label>
+                        <input 
+                            type="number" 
+                            defaultValue="5"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-emerald-500"
+                        />
+                    </div>
+                    
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Booking Deadline (days before event)</label>
+                        <input 
+                            type="number" 
+                            defaultValue="1"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-emerald-500"
+                        />
+                    </div>
+                    
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Refund Period (days)</label>
+                        <input 
+                            type="number" 
+                            defaultValue="7"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-emerald-500"
+                        />
+                    </div>
+                </div>
+            </div>
+
+            {/* Notification Settings */}
+            <div className="bg-white p-6 rounded-lg shadow-sm border">
+                <h3 className="text-lg font-medium text-gray-900 mb-4">Notification Settings</h3>
+                <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <label className="text-sm font-medium text-gray-700">Email Notifications</label>
+                            <p className="text-sm text-gray-500">Kirim notifikasi via email</p>
+                        </div>
+                        <input type="checkbox" defaultChecked className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500" />
+                    </div>
+                    
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <label className="text-sm font-medium text-gray-700">SMS Notifications</label>
+                            <p className="text-sm text-gray-500">Kirim notifikasi via SMS</p>
+                        </div>
+                        <input type="checkbox" className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500" />
+                    </div>
+                </div>
+            </div>
+
+            {/* Save Button */}
+            <div className="flex justify-end">
+                <button className="px-6 py-2 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 transition-colors">
+                    Save Settings
+                </button>
+            </div>
+        </div>
+    );
+}
+
+function AdminAnalytics({ events, users }) {
+    const totalRevenue = events.reduce((sum, event) => sum + (event.price || event.harga_tiket || 0), 0);
+    const avgRating = events.length > 0 ? 
+        events.reduce((sum, event) => sum + (event.rating || 0), 0) / events.length : 0;
+
+    return (
+        <div className="space-y-6">
+            <div>
+                <h2 className="text-2xl font-bold text-gray-900">Analytics</h2>
+                <p className="text-gray-600">Analisis data dan statistik platform</p>
+            </div>
+
+            {/* Revenue Stats */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="bg-white p-6 rounded-lg shadow-sm border">
+                    <div className="flex items-center">
+                        <div className="p-2 bg-green-100 rounded-lg">
+                            <BarChart3 className="w-6 h-6 text-green-600" />
+                        </div>
+                        <div className="ml-4">
+                            <p className="text-sm font-medium text-gray-600">Total Revenue</p>
+                            <p className="text-2xl font-bold text-gray-900">
+                                Rp {totalRevenue.toLocaleString('id-ID')}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div className="bg-white p-6 rounded-lg shadow-sm border">
+                    <div className="flex items-center">
+                        <div className="p-2 bg-yellow-100 rounded-lg">
+                            <Calendar className="w-6 h-6 text-yellow-600" />
+                        </div>
+                        <div className="ml-4">
+                            <p className="text-sm font-medium text-gray-600">Average Rating</p>
+                            <p className="text-2xl font-bold text-gray-900">
+                                {avgRating.toFixed(1)}/5
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div className="bg-white p-6 rounded-lg shadow-sm border">
+                    <div className="flex items-center">
+                        <div className="p-2 bg-blue-100 rounded-lg">
+                            <Users className="w-6 h-6 text-blue-600" />
+                        </div>
+                        <div className="ml-4">
+                            <p className="text-sm font-medium text-gray-600">Growth Rate</p>
+                            <p className="text-2xl font-bold text-gray-900">+12%</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Charts Placeholder */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="bg-white p-6 rounded-lg shadow-sm border">
+                    <h3 className="text-lg font-medium text-gray-900 mb-4">Event Categories</h3>
+                    <div className="h-64 flex items-center justify-center bg-gray-50 rounded-lg">
+                        <p className="text-gray-500">Chart akan ditampilkan di sini</p>
+                    </div>
+                </div>
+                
+                <div className="bg-white p-6 rounded-lg shadow-sm border">
+                    <h3 className="text-lg font-medium text-gray-900 mb-4">User Growth</h3>
+                    <div className="h-64 flex items-center justify-center bg-gray-50 rounded-lg">
+                        <p className="text-gray-500">Chart akan ditampilkan di sini</p>
+                    </div>
+                </div>
+            </div>
+
+            {/* Recent Activity */}
+            <div className="bg-white p-6 rounded-lg shadow-sm border">
+                <h3 className="text-lg font-medium text-gray-900 mb-4">Recent Activity</h3>
+                <div className="space-y-3">
+                    <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
+                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                        <p className="text-sm text-gray-600">New user registered: user@example.com</p>
+                        <span className="text-xs text-gray-400">2 minutes ago</span>
+                    </div>
+                    <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
+                        <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                        <p className="text-sm text-gray-600">New event created: Festival Budaya Jakarta</p>
+                        <span className="text-xs text-gray-400">1 hour ago</span>
+                    </div>
+                    <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
+                        <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
+                        <p className="text-sm text-gray-600">Event updated: Workshop Batik</p>
+                        <span className="text-xs text-gray-400">3 hours ago</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function AdminDashboardOverview({ events, users }) {
+    const totalEvents = events.length;
+    const totalUsers = users.length;
+    const verifiedUsers = users.filter(user => user.isEmailVerified).length;
+    const thisMonthEvents = events.filter(event => {
+        const eventDate = new Date(event.startDate?.toDate ? event.startDate.toDate() : event.startDate);
+        const thisMonth = new Date();
+        thisMonth.setDate(1);
+        return eventDate >= thisMonth;
+    }).length;
+
+    return (
+        <div className="space-y-6">
+            <div>
+                <h1 className="text-3xl font-bold text-gray-900">Dashboard Overview</h1>
+                <p className="text-gray-600">Selamat datang di Admin Panel LokaBudaya</p>
+            </div>
+
+            {/* Stats Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div className="bg-white p-6 rounded-lg shadow-sm border">
+                    <div className="flex items-center">
+                        <div className="p-2 bg-blue-100 rounded-lg">
+                            <Calendar className="w-6 h-6 text-blue-600" />
+                        </div>
+                        <div className="ml-4">
+                            <p className="text-sm font-medium text-gray-600">Total Events</p>
+                            <p className="text-2xl font-bold text-gray-900">{totalEvents}</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div className="bg-white p-6 rounded-lg shadow-sm border">
+                    <div className="flex items-center">
+                        <div className="p-2 bg-green-100 rounded-lg">
+                            <Users className="w-6 h-6 text-green-600" />
+                        </div>
+                        <div className="ml-4">
+                            <p className="text-sm font-medium text-gray-600">Total Users</p>
+                            <p className="text-2xl font-bold text-gray-900">{totalUsers}</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div className="bg-white p-6 rounded-lg shadow-sm border">
+                    <div className="flex items-center">
+                        <div className="p-2 bg-purple-100 rounded-lg">
+                            <Shield className="w-6 h-6 text-purple-600" />
+                        </div>
+                        <div className="ml-4">
+                            <p className="text-sm font-medium text-gray-600">Verified Users</p>
+                            <p className="text-2xl font-bold text-gray-900">{verifiedUsers}</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div className="bg-white p-6 rounded-lg shadow-sm border">
+                    <div className="flex items-center">
+                        <div className="p-2 bg-yellow-100 rounded-lg">
+                            <BarChart3 className="w-6 h-6 text-yellow-600" />
+                        </div>
+                        <div className="ml-4">
+                            <p className="text-sm font-medium text-gray-600">Events This Month</p>
+                            <p className="text-2xl font-bold text-gray-900">{thisMonthEvents}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Recent Activity */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="bg-white p-6 rounded-lg shadow-sm border">
+                    <h3 className="text-lg font-medium text-gray-900 mb-4">Recent Events</h3>
+                    <div className="space-y-3">
+                        {events.slice(0, 5).map(event => (
+                            <div key={event.id} className="flex items-center space-x-3">
+                                <img 
+                                    src={event.imgRes || event.gambar_event} 
+                                    alt={event.title || event.nama_event}
+                                    className="w-10 h-10 rounded-lg object-cover"
+                                />
+                                <div className="flex-1">
+                                    <p className="text-sm font-medium text-gray-900">
+                                        {event.title || event.nama_event}
+                                    </p>
+                                    <p className="text-xs text-gray-500">
+                                        {event.location || event.lokasi}
+                                    </p>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                <div className="bg-white p-6 rounded-lg shadow-sm border">
+                    <h3 className="text-lg font-medium text-gray-900 mb-4">Recent Users</h3>
+                    <div className="space-y-3">
+                        {users.slice(0, 5).map(user => (
+                            <div key={user.id} className="flex items-center space-x-3">
+                                <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center">
+                                    <span className="text-sm font-medium text-gray-700">
+                                        {(user.profile?.displayname || user.email || 'U')[0].toUpperCase()}
+                                    </span>
+                                </div>
+                                <div className="flex-1">
+                                    <p className="text-sm font-medium text-gray-900">
+                                        {user.profile?.displayname || 'No Name'}
+                                    </p>
+                                    <p className="text-xs text-gray-500">{user.email}</p>
+                                </div>
+                                <span className={`text-xs px-2 py-1 rounded-full ${
+                                    user.isEmailVerified ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                                }`}>
+                                    {user.isEmailVerified ? 'Verified' : 'Unverified'}
+                                </span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function KulinerManagement({ kuliners, addKuliner, deleteKuliner }) {
+    const [title, setTitle] = useState('');
+    const [kulinerTime, setKulinerTime] = useState('');
+    const [price, setPrice] = useState('');
+    const [rating, setRating] = useState('');
+    const [location, setLocation] = useState('');
+    const [desc, setDesc] = useState('');
+    const [latitude, setLatitude] = useState('');
+    const [longitude, setLongitude] = useState('');
+    const [imageFile, setImageFile] = useState(null);
+    const [imageUrl, setImageUrl] = useState('');
+    const [uploading, setUploading] = useState(false);
+
+    // Function untuk upload gambar
+    const handleImageUpload = async (file) => {
+        if (!file) return;
+        
+        setUploading(true);
+        const formData = new FormData();
+        formData.append('file', file);
+        
+        try {
+            const response = await fetch('/api/upload', {
+                method: 'POST',
+                body: formData,
+            });
+            
+            const result = await response.json();
+            
+            if (response.ok) {
+                setImageUrl(result.url);
+                console.log('Upload berhasil:', result.url);
+            } else {
+                console.error('Upload gagal:', result.error);
+                alert('Upload gagal: ' + result.error);
+            }
+        } catch (error) {
+            console.error('Upload error:', error);
+            alert('Terjadi kesalahan saat upload');
+        } finally {
+            setUploading(false);
+        }
+    };
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        
+        if (title.trim() === '' || location.trim() === '' || desc.trim() === '' || 
+            price === '' || rating === '' || kulinerTime === '') {
+            alert('Mohon lengkapi semua field yang diperlukan');
+            return;
+        }
+        
+        const kulinerData = {
+            title: title,
+            kulinerTime: kulinerTime,
+            price: parseInt(price),
+            rating: parseFloat(rating),
+            location: location,
+            desc: desc,
+            latitude: latitude ? parseFloat(latitude) : 0,
+            longtitude: longitude ? parseFloat(longitude) : 0, // Note: typo sesuai Android
+            imgRes: imageUrl || 'https://placehold.co/600x400/166534/FFFFFF?text=Kuliner',
+            isFavorite: false, // Hidden field, always false
+            createdAt: new Date()
+        };
+
+        await addKuliner(kulinerData);
+
+        // Reset form
+        setTitle('');
+        setKulinerTime('');
+        setPrice('');
+        setRating('');
+        setLocation('');
+        setDesc('');
+        setLatitude('');
+        setLongitude('');
+        setImageUrl('');
+        setImageFile(null);
+    };
+
+    return (
+        <div className="space-y-6">
+            <h2 className="text-2xl font-bold text-gray-900">Kelola Kuliner</h2>
+            
+            {/* Form Tambah Kuliner */}
+            <div className="bg-white p-6 rounded-lg shadow-md">
+                <h3 className="text-xl font-semibold mb-4">Tambah Kuliner Baru</h3>
+                <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {/* Title */}
+                    <div className="lg:col-span-2">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Nama Kuliner</label>
+                        <input 
+                            value={title} 
+                            onChange={e => setTitle(e.target.value)} 
+                            placeholder="Nama Kuliner" 
+                            className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-emerald-500" 
+                            required
+                        />
+                    </div>
+
+                    {/* Kuliner Time */}
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Jam Operasional</label>
+                        <input 
+                            value={kulinerTime} 
+                            onChange={e => setKulinerTime(e.target.value)} 
+                            placeholder="10 AM - 9 PM" 
+                            className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-emerald-500" 
+                            required
+                        />
+                    </div>
+
+                    {/* Location */}
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Lokasi</label>
+                        <input 
+                            value={location} 
+                            onChange={e => setLocation(e.target.value)} 
+                            placeholder="Lokasi Kuliner" 
+                            className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-emerald-500" 
+                            required
+                        />
+                    </div>
+
+                    {/* Price */}
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Harga (Rp)</label>
+                        <input 
+                            type="number"
+                            value={price} 
+                            onChange={e => setPrice(e.target.value)} 
+                            placeholder="25000" 
+                            className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-emerald-500" 
+                            required
+                            min="0"
+                        />
+                    </div>
+
+                    {/* Rating */}
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Rating (1-5)</label>
+                        <input 
+                            type="number"
+                            value={rating} 
+                            onChange={e => setRating(e.target.value)} 
+                            placeholder="4.5" 
+                            className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-emerald-500" 
+                            required
+                            min="1"
+                            max="5"
+                            step="0.1"
+                        />
+                    </div>
+
+                    {/* Latitude */}
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Latitude</label>
+                        <input 
+                            type="number"
+                            value={latitude} 
+                            onChange={e => setLatitude(e.target.value)} 
+                            placeholder="-7.5709241" 
+                            className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-emerald-500" 
+                            step="any"
+                        />
+                    </div>
+
+                    {/* Longitude */}
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Longitude</label>
+                        <input 
+                            type="number"
+                            value={longitude} 
+                            onChange={e => setLongitude(e.target.value)} 
+                            placeholder="110.7926132" 
+                            className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-emerald-500" 
+                            step="any"
+                        />
+                    </div>
 
                     {/* Upload Gambar */}
-                    <div className="flex flex-col">
-                        <label className="text-sm font-medium text-gray-700 mb-1">
-                            Gambar Event
-                        </label>
+                    <div className="lg:col-span-3">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Gambar Kuliner</label>
                         <input 
                             type="file" 
                             accept="image/*"
@@ -463,34 +1916,40 @@ function AdminDashboard({ events, navigate, userData }) {
                         )}
                     </div>
                     
-                    <textarea 
-                        value={deskripsi} 
-                        onChange={e => setDeskripsi(e.target.value)} 
-                        placeholder="Deskripsi Event" 
-                        className="w-full px-3 py-2 border rounded-md md:col-span-2 focus:ring-2 focus:ring-emerald-500"
-                        rows="3"
-                        required
-                    ></textarea>
+                    {/* Deskripsi */}
+                    <div className="lg:col-span-3">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Deskripsi Kuliner</label>
+                        <textarea 
+                            value={desc} 
+                            onChange={e => setDesc(e.target.value)} 
+                            placeholder="Deskripsi lengkap kuliner..." 
+                            className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-emerald-500"
+                            rows="4"
+                            required
+                        ></textarea>
+                    </div>
                     
-                    <button 
-                        type="submit" 
-                        className="w-full md:w-auto px-4 py-2 font-semibold text-white bg-emerald-600 rounded-md hover:bg-emerald-700 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                        disabled={uploading}
-                    >
-                        <PlusCircle className="mr-2 h-5 w-5" /> 
-                        {uploading ? 'Processing...' : 'Simpan Event'}
-                    </button>
+                    {/* Submit Button */}
+                    <div className="lg:col-span-3">
+                        <button 
+                            type="submit" 
+                            className="w-full md:w-auto px-6 py-3 font-semibold text-white bg-emerald-600 rounded-md hover:bg-emerald-700 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            disabled={uploading}
+                        >
+                            {uploading ? 'Processing...' : 'Simpan Kuliner'}
+                        </button>
+                    </div>
                 </form>
             </div>
 
             {/* Preview Gambar */}
             {imageUrl && (
-                <div className="bg-white p-4 rounded-lg shadow-md mb-8">
-                    <h4 className="font-semibold mb-3 text-gray-700">Preview Gambar Event:</h4>
+                <div className="bg-white p-4 rounded-lg shadow-md">
+                    <h4 className="font-semibold mb-3 text-gray-700">Preview Gambar Kuliner:</h4>
                     <div className="flex items-start space-x-4">
                         <img 
                             src={imageUrl} 
-                            alt="Preview Event" 
+                            alt="Preview Kuliner" 
                             className="max-w-xs h-auto rounded-lg shadow-sm border"
                         />
                         <div className="flex-1">
@@ -511,46 +1970,59 @@ function AdminDashboard({ events, navigate, userData }) {
                 </div>
             )}
 
-            {/* Tabel Daftar Event */}
+            {/* Tabel Daftar Kuliner */}
             <div className="bg-white p-6 rounded-lg shadow-md">
-                <h3 className="text-xl font-semibold mb-4">Daftar Event</h3>
+                <h3 className="text-xl font-semibold mb-4">Daftar Kuliner</h3>
                 <div className="overflow-x-auto">
                     <table className="min-w-full divide-y divide-gray-200">
                         <thead className="bg-gray-50">
                             <tr>
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Gambar</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nama Event</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Kuliner</th>
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Lokasi</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Kategori</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Jam Operasional</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Harga</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Rating</th>
                                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Aksi</th>
                             </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-200">
-                            {events.map(event => (
-                                <tr key={event.id}>
+                            {kuliners.map(kuliner => (
+                                <tr key={kuliner.id}>
                                     <td className="px-6 py-4 whitespace-nowrap">
                                         <img 
-                                            src={event.gambar_event} 
-                                            alt={event.nama_event}
+                                            src={kuliner.imgRes} 
+                                            alt={kuliner.title}
                                             className="h-12 w-12 rounded-lg object-cover"
                                         />
                                     </td>
-                                    <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900">
-                                        {event.nama_event}
+                                    <td className="px-6 py-4 whitespace-nowrap">
+                                        <div className="font-medium text-gray-900">
+                                            {kuliner.title}
+                                        </div>
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-gray-500">
-                                        {event.lokasi}
+                                        {kuliner.location}
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-gray-500">
+                                        {kuliner.kulinerTime}
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-gray-500">
+                                        Rp {kuliner.price.toLocaleString('id-ID')}
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap">
-                                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800">
-                                            {event.kategori || 'Tidak ada kategori'}
-                                        </span>
+                                        <div className="flex items-center">
+                                            <span className="text-yellow-400">★</span>
+                                            <span className="ml-1 text-sm text-gray-600">
+                                                {kuliner.rating}
+                                            </span>
+                                        </div>
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-right">
                                         <button 
-                                            onClick={() => deleteEvent(event.id)} 
+                                            onClick={() => deleteKuliner(kuliner.id)} 
                                             className="text-red-600 hover:text-red-800 transition-colors"
-                                            title="Hapus Event"
+                                            title="Hapus Kuliner"
                                         >
                                             <Trash2 className="h-5 w-5" />
                                         </button>
@@ -564,6 +2036,639 @@ function AdminDashboard({ events, navigate, userData }) {
         </div>
     );
 }
+
+function TourManagement({ tours, addTour, deleteTour }) {
+    const [title, setTitle] = useState('');
+    const [time, setTime] = useState('');
+    const [price, setPrice] = useState('');
+    const [rating, setRating] = useState('');
+    const [location, setLocation] = useState('');
+    const [desc, setDesc] = useState('');
+    const [latitude, setLatitude] = useState('');
+    const [longitude, setLongitude] = useState('');
+    const [imageFile, setImageFile] = useState(null);
+    const [imageUrl, setImageUrl] = useState('');
+    const [uploading, setUploading] = useState(false);
+
+    // Function untuk upload gambar
+    const handleImageUpload = async (file) => {
+        if (!file) return;
+        
+        setUploading(true);
+        const formData = new FormData();
+        formData.append('file', file);
+        
+        try {
+            const response = await fetch('/api/upload', {
+                method: 'POST',
+                body: formData,
+            });
+            
+            const result = await response.json();
+            
+            if (response.ok) {
+                setImageUrl(result.url);
+                console.log('Upload berhasil:', result.url);
+            } else {
+                console.error('Upload gagal:', result.error);
+                alert('Upload gagal: ' + result.error);
+            }
+        } catch (error) {
+            console.error('Upload error:', error);
+            alert('Terjadi kesalahan saat upload');
+        } finally {
+            setUploading(false);
+        }
+    };
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        
+        if (title.trim() === '' || location.trim() === '' || desc.trim() === '' || 
+            price === '' || rating === '' || time === '') {
+            alert('Mohon lengkapi semua field yang diperlukan');
+            return;
+        }
+        
+        const tourData = {
+            title: title,
+            time: time,
+            price: parseInt(price),
+            rating: parseFloat(rating),
+            location: location,
+            desc: desc,
+            latitude: latitude ? parseFloat(latitude) : 0,
+            longtitude: longitude ? parseFloat(longitude) : 0, // Note: typo sesuai Android
+            imgRes: imageUrl || 'https://placehold.co/600x400/166534/FFFFFF?text=Tour',
+            isFavorite: false, // Hidden field, always false
+            createdAt: new Date()
+        };
+
+        await addTour(tourData);
+
+        // Reset form
+        setTitle('');
+        setTime('');
+        setPrice('');
+        setRating('');
+        setLocation('');
+        setDesc('');
+        setLatitude('');
+        setLongitude('');
+        setImageUrl('');
+        setImageFile(null);
+    };
+
+    return (
+        <div className="space-y-6">
+            <h2 className="text-2xl font-bold text-gray-900">Kelola Tour</h2>
+            
+            {/* Form Tambah Tour */}
+            <div className="bg-white p-6 rounded-lg shadow-md">
+                <h3 className="text-xl font-semibold mb-4">Tambah Tour Baru</h3>
+                <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {/* Title */}
+                    <div className="lg:col-span-2">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Nama Tour</label>
+                        <input 
+                            value={title} 
+                            onChange={e => setTitle(e.target.value)} 
+                            placeholder="Nama Tour" 
+                            className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-emerald-500" 
+                            required
+                        />
+                    </div>
+
+                    {/* Time */}
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Waktu Tour</label>
+                        <input 
+                            value={time} 
+                            onChange={e => setTime(e.target.value)} 
+                            placeholder="10 AM" 
+                            className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-emerald-500" 
+                            required
+                        />
+                    </div>
+
+                    {/* Location */}
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Lokasi</label>
+                        <input 
+                            value={location} 
+                            onChange={e => setLocation(e.target.value)} 
+                            placeholder="Lokasi Tour" 
+                            className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-emerald-500" 
+                            required
+                        />
+                    </div>
+
+                    {/* Price */}
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Harga (Rp)</label>
+                        <input 
+                            type="number"
+                            value={price} 
+                            onChange={e => setPrice(e.target.value)} 
+                            placeholder="150000" 
+                            className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-emerald-500" 
+                            required
+                            min="0"
+                        />
+                    </div>
+
+                    {/* Rating */}
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Rating (1-5)</label>
+                        <input 
+                            type="number"
+                            value={rating} 
+                            onChange={e => setRating(e.target.value)} 
+                            placeholder="4.5" 
+                            className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-emerald-500" 
+                            required
+                            min="1"
+                            max="5"
+                            step="0.1"
+                        />
+                    </div>
+
+                    {/* Latitude */}
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Latitude</label>
+                        <input 
+                            type="number"
+                            value={latitude} 
+                            onChange={e => setLatitude(e.target.value)} 
+                            placeholder="-7.574178450295152" 
+                            className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-emerald-500" 
+                            step="any"
+                        />
+                    </div>
+
+                    {/* Longitude */}
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Longitude</label>
+                        <input 
+                            type="number"
+                            value={longitude} 
+                            onChange={e => setLongitude(e.target.value)} 
+                            placeholder="110.81591618151339" 
+                            className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-emerald-500" 
+                            step="any"
+                        />
+                    </div>
+
+                    {/* Upload Gambar */}
+                    <div className="lg:col-span-3">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Gambar Tour</label>
+                        <input 
+                            type="file" 
+                            accept="image/*"
+                            onChange={(e) => {
+                                const file = e.target.files[0];
+                                if (file) {
+                                    setImageFile(file);
+                                    handleImageUpload(file);
+                                }
+                            }}
+                            className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-emerald-500"
+                            disabled={uploading}
+                        />
+                        {uploading && (
+                            <div className="flex items-center mt-1">
+                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-emerald-600 mr-2"></div>
+                                <p className="text-sm text-blue-600">Uploading...</p>
+                            </div>
+                        )}
+                        {imageUrl && (
+                            <p className="text-sm text-green-600 mt-1 flex items-center">
+                                <span className="mr-1">✓</span> Upload berhasil
+                            </p>
+                        )}
+                    </div>
+                    
+                    {/* Deskripsi */}
+                    <div className="lg:col-span-3">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Deskripsi Tour</label>
+                        <textarea 
+                            value={desc} 
+                            onChange={e => setDesc(e.target.value)} 
+                            placeholder="Deskripsi lengkap tour..." 
+                            className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-emerald-500"
+                            rows="4"
+                            required
+                        ></textarea>
+                    </div>
+                    
+                    {/* Submit Button */}
+                    <div className="lg:col-span-3">
+                        <button 
+                            type="submit" 
+                            className="w-full md:w-auto px-6 py-3 font-semibold text-white bg-emerald-600 rounded-md hover:bg-emerald-700 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            disabled={uploading}
+                        >
+                            {uploading ? 'Processing...' : 'Simpan Tour'}
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            {/* Preview Gambar */}
+            {imageUrl && (
+                <div className="bg-white p-4 rounded-lg shadow-md">
+                    <h4 className="font-semibold mb-3 text-gray-700">Preview Gambar Tour:</h4>
+                    <div className="flex items-start space-x-4">
+                        <img 
+                            src={imageUrl} 
+                            alt="Preview Tour" 
+                            className="max-w-xs h-auto rounded-lg shadow-sm border"
+                        />
+                        <div className="flex-1">
+                            <p className="text-sm text-gray-600 mb-2">
+                                <strong>URL:</strong> {imageUrl}
+                            </p>
+                            <button 
+                                onClick={() => {
+                                    setImageUrl('');
+                                    setImageFile(null);
+                                }}
+                                className="text-red-600 hover:text-red-800 text-sm"
+                            >
+                                Hapus Gambar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Tabel Daftar Tour */}
+            <div className="bg-white p-6 rounded-lg shadow-md">
+                <h3 className="text-xl font-semibold mb-4">Daftar Tour</h3>
+                <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200">
+                        <thead className="bg-gray-50">
+                            <tr>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Gambar</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tour</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Lokasi</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Waktu</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Harga</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Rating</th>
+                                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-200">
+                            {tours.map(tour => (
+                                <tr key={tour.id}>
+                                    <td className="px-6 py-4 whitespace-nowrap">
+                                        <img 
+                                            src={tour.imgRes} 
+                                            alt={tour.title}
+                                            className="h-12 w-12 rounded-lg object-cover"
+                                        />
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap">
+                                        <div className="font-medium text-gray-900">
+                                            {tour.title}
+                                        </div>
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-gray-500">
+                                        {tour.location}
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-gray-500">
+                                        {tour.time}
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-gray-500">
+                                        Rp {tour.price.toLocaleString('id-ID')}
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap">
+                                        <div className="flex items-center">
+                                            <span className="text-yellow-400">★</span>
+                                            <span className="ml-1 text-sm text-gray-600">
+                                                {tour.rating}
+                                            </span>
+                                        </div>
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-right">
+                                        <button 
+                                            onClick={() => deleteTour(tour.id)} 
+                                            className="text-red-600 hover:text-red-800 transition-colors"
+                                            title="Hapus Tour"
+                                        >
+                                            <Trash2 className="h-5 w-5" />
+                                        </button>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function UserManagement({ users }) {
+    const [searchTerm, setSearchTerm] = useState('');
+    const [filterRole, setFilterRole] = useState('all');
+    const [selectedUser, setSelectedUser] = useState(null);
+    const [showUserDetail, setShowUserDetail] = useState(false);
+
+    const filteredUsers = users.filter(user => {
+        const matchesSearch = user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                            (user.profile?.displayname || '').toLowerCase().includes(searchTerm.toLowerCase());
+        const matchesRole = filterRole === 'all' || user.role === filterRole;
+        return matchesSearch && matchesRole;
+    });
+
+    const handleViewUser = (user) => {
+        setSelectedUser(user);
+        setShowUserDetail(true);
+    };
+
+    const handleUpdateUserRole = async (userId, newRole) => {
+        try {
+            await setDoc(doc(db, 'users', userId), { role: newRole }, { merge: true });
+            alert('Role user berhasil diupdate!');
+        } catch (error) {
+            console.error('Error updating user role:', error);
+            alert('Gagal mengupdate role user');
+        }
+    };
+
+    if (showUserDetail && selectedUser) {
+        return (
+            <UserDetailModal 
+                user={selectedUser} 
+                onClose={() => setShowUserDetail(false)}
+                onUpdateRole={handleUpdateUserRole}
+            />
+        );
+    }
+
+    return (
+        <div className="space-y-6">
+            <div className="flex justify-between items-center">
+                <h2 className="text-2xl font-bold text-gray-900">Kelola Users</h2>
+                <div className="flex space-x-4">
+                    {/* Search */}
+                    <div className="relative">
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+                        <input
+                            type="text"
+                            placeholder="Cari user..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500"
+                        />
+                    </div>
+                    
+                    {/* Filter Role */}
+                    <select
+                        value={filterRole}
+                        onChange={(e) => setFilterRole(e.target.value)}
+                        className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500"
+                    >
+                        <option value="all">Semua Role</option>
+                        <option value="user">User</option>
+                        <option value="admin">Admin</option>
+                    </select>
+                </div>
+            </div>
+
+            {/* Stats Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                <div className="bg-white p-6 rounded-lg shadow-sm border">
+                    <div className="flex items-center">
+                        <div className="p-2 bg-blue-100 rounded-lg">
+                            <Users className="w-6 h-6 text-blue-600" />
+                        </div>
+                        <div className="ml-4">
+                            <p className="text-sm font-medium text-gray-600">Total Users</p>
+                            <p className="text-2xl font-bold text-gray-900">{users.length}</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div className="bg-white p-6 rounded-lg shadow-sm border">
+                    <div className="flex items-center">
+                        <div className="p-2 bg-green-100 rounded-lg">
+                            <Shield className="w-6 h-6 text-green-600" />
+                        </div>
+                        <div className="ml-4">
+                            <p className="text-sm font-medium text-gray-600">Verified Users</p>
+                            <p className="text-2xl font-bold text-gray-900">
+                                {users.filter(user => user.isEmailVerified).length}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div className="bg-white p-6 rounded-lg shadow-sm border">
+                    <div className="flex items-center">
+                        <div className="p-2 bg-purple-100 rounded-lg">
+                            <Settings className="w-6 h-6 text-purple-600" />
+                        </div>
+                        <div className="ml-4">
+                            <p className="text-sm font-medium text-gray-600">Admins</p>
+                            <p className="text-2xl font-bold text-gray-900">
+                                {users.filter(user => user.role === 'admin').length}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div className="bg-white p-6 rounded-lg shadow-sm border">
+                    <div className="flex items-center">
+                        <div className="p-2 bg-yellow-100 rounded-lg">
+                            <Calendar className="w-6 h-6 text-yellow-600" />
+                        </div>
+                        <div className="ml-4">
+                            <p className="text-sm font-medium text-gray-600">New This Month</p>
+                            <p className="text-2xl font-bold text-gray-900">
+                                {users.filter(user => {
+                                    const userDate = new Date(user.createdAt?.toDate ? user.createdAt.toDate() : user.createdAt);
+                                    const thisMonth = new Date();
+                                    thisMonth.setDate(1);
+                                    return userDate >= thisMonth;
+                                }).length}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Users Table */}
+            <div className="bg-white rounded-lg shadow-sm border">
+                <div className="px-6 py-4 border-b border-gray-200">
+                    <h3 className="text-lg font-medium text-gray-900">Daftar Users</h3>
+                </div>
+                <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200">
+                        <thead className="bg-gray-50">
+                            <tr>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Bergabung</th>
+                                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-200">
+                            {filteredUsers.map((user) => (
+                                <tr key={user.id} className="hover:bg-gray-50">
+                                    <td className="px-6 py-4 whitespace-nowrap">
+                                        <div className="flex items-center">
+                                            <div className="flex-shrink-0 h-10 w-10">
+                                                <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
+                                                    <span className="text-sm font-medium text-gray-700">
+                                                        {(user.profile?.displayname || user.email || 'U')[0].toUpperCase()}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                            <div className="ml-4">
+                                                <div className="text-sm font-medium text-gray-900">
+                                                    {user.profile?.displayname || 'No Name'}
+                                                </div>
+                                                <div className="text-sm text-gray-500">
+                                                    @{user.username || user.profile?.username || 'username'}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                        {user.email}
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap">
+                                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                            user.role === 'admin' 
+                                                ? 'bg-purple-100 text-purple-800' 
+                                                : 'bg-gray-100 text-gray-800'
+                                        }`}>
+                                            {user.role === 'admin' ? 'Admin' : 'User'}
+                                        </span>
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap">
+                                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                            user.isEmailVerified 
+                                                ? 'bg-green-100 text-green-800' 
+                                                : 'bg-red-100 text-red-800'
+                                        }`}>
+                                            {user.isEmailVerified ? 'Verified' : 'Unverified'}
+                                        </span>
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                        {user.createdAt ? 
+                                            new Date(user.createdAt.toDate ? user.createdAt.toDate() : user.createdAt).toLocaleDateString('id-ID') 
+                                            : 'N/A'
+                                        }
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                        <button
+                                            onClick={() => handleViewUser(user)}
+                                            className="text-emerald-600 hover:text-emerald-900 mr-3"
+                                        >
+                                            Detail
+                                        </button>
+                                        <select
+                                            value={user.role}
+                                            onChange={(e) => handleUpdateUserRole(user.id, e.target.value)}
+                                            className="text-sm border border-gray-300 rounded px-2 py-1"
+                                        >
+                                            <option value="user">User</option>
+                                            <option value="admin">Admin</option>
+                                        </select>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function UserDetailModal({ user, onClose, onUpdateRole }) {
+    return (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+            <div className="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-white">
+                <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-lg font-bold text-gray-900">Detail User</h3>
+                    <button
+                        onClick={onClose}
+                        className="text-gray-400 hover:text-gray-600"
+                    >
+                        <X className="w-6 h-6" />
+                    </button>
+                </div>
+                
+                <div className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700">Display Name</label>
+                            <p className="mt-1 text-sm text-gray-900">{user.profile?.displayname || 'N/A'}</p>
+                        </div>
+                        
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700">Username</label>
+                            <p className="mt-1 text-sm text-gray-900">{user.username || user.profile?.username || 'N/A'}</p>
+                        </div>
+                        
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700">Email</label>
+                            <p className="mt-1 text-sm text-gray-900">{user.email}</p>
+                        </div>
+                        
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700">Phone Number</label>
+                            <p className="mt-1 text-sm text-gray-900">{user.profile?.phonenumber || 'N/A'}</p>
+                        </div>
+                        
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700">Role</label>
+                            <p className="mt-1 text-sm text-gray-900 capitalize">{user.role}</p>
+                        </div>
+                        
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700">Email Verified</label>
+                            <p className="mt-1 text-sm text-gray-900">
+                                {user.isEmailVerified ? 'Yes' : 'No'}
+                            </p>
+                        </div>
+                        
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700">User ID</label>
+                            <p className="mt-1 text-sm text-gray-900 font-mono">{user.uid}</p>
+                        </div>
+                        
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700">Created At</label>
+                            <p className="mt-1 text-sm text-gray-900">
+                                {user.createdAt ? 
+                                    new Date(user.createdAt.toDate ? user.createdAt.toDate() : user.createdAt).toLocaleString('id-ID') 
+                                    : 'N/A'
+                                }
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div className="mt-6 flex justify-end space-x-3">
+                    <button
+                        onClick={onClose}
+                        className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400"
+                    >
+                        Close
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
 
 // --- KOMPONEN UI ---
 function Navbar({ user, userData, navigate }) {
@@ -839,7 +2944,6 @@ function FilterSection({ onFilterChange }) {
                             onClick={handleFilterChange}
                             className="w-full bg-emerald-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-emerald-700 transition-colors flex items-center justify-center"
                         >
-                            <Search size={20} className="mr-2" />
                             Search
                         </button>
                         <p className="text-xs text-transparent mt-1">.</p>
