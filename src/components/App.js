@@ -3022,16 +3022,16 @@ function Footer() {
                             <h4 className="text-white font-semibold mb-3">Partner Pembayaran</h4>
                             <div className="grid grid-cols-4 gap-2">
                                 <div className="bg-white p-2 rounded text-center">
-                                    <span className="text-xs text-gray-800"><img src="https://ik.imagekit.io/tvlk/image/imageResource/2025/01/10/1736481390434-91c03767be9d8650e67d3236af416c78.webp?tr=h-19,q-75,w-57"></img></span>
+                                    <span className="text-xs text-gray-800"><img src="https://ik.imagekit.io/tvlk/image/imageResource/2025/01/10/1736481390434-91c03767be9d8650e67d3236af416c78.webp?tr=h-19,q-75,w-57" alt="BCA Payment"></img></span>
                                 </div>
                                 <div className="bg-white p-2 rounded text-center">
-                                    <span className="text-xs text-gray-800"><img src="https://ik.imagekit.io/tvlk/image/imageResource/2025/01/10/1736481407355-5c172bc37ff6d37a75e16fc17032112b.webp?tr=h-19,q-75,w-57"></img></span>
+                                    <span className="text-xs text-gray-800"><img src="https://ik.imagekit.io/tvlk/image/imageResource/2025/01/10/1736481407355-5c172bc37ff6d37a75e16fc17032112b.webp?tr=h-19,q-75,w-57" alt="BRI Payment"></img></span>
                                 </div>
                                 <div className="bg-white p-2 rounded text-center">
-                                    <span className="text-xs text-gray-800"><img src="https://ik.imagekit.io/tvlk/image/imageResource/2025/01/10/1736481418674-af23636c3bb5dfae8181febb8b4c6713.webp?tr=h-19,q-75,w-57"></img></span>
+                                    <span className="text-xs text-gray-800"><img src="https://ik.imagekit.io/tvlk/image/imageResource/2025/01/10/1736481418674-af23636c3bb5dfae8181febb8b4c6713.webp?tr=h-19,q-75,w-57" alt="BNI Payment"></img></span>
                                 </div>
                                 <div className="bg-white p-2 rounded text-center">
-                                    <span className="text-xs text-gray-800"><img src="https://ik.imagekit.io/tvlk/image/imageResource/2025/02/20/1740022373472-39026d4e4ad5cfc5a8ec3b8c8d38254c.jpeg?tr=h-19,q-75,w-57"></img></span>
+                                    <span className="text-xs text-gray-800"><img src="https://ik.imagekit.io/tvlk/image/imageResource/2025/02/20/1740022373472-39026d4e4ad5cfc5a8ec3b8c8d38254c.jpeg?tr=h-19,q-75,w-57" alt="OVO Payment"></img></span>
                                 </div>
                             </div>
                         </div>
