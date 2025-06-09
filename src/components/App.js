@@ -2764,6 +2764,9 @@ function Navbar({ user, userData, navigate }) {
                         <div className="flex flex-col space-y-4">
                             <a href="#" onClick={() => navigate('home')} 
                                className="text-gray-800 hover:text-emerald-600 font-medium">
+                                HOME
+                            </a>
+                            <a href="#" className="text-gray-800 hover:text-emerald-600 font-medium">
                                 PARTNERSHIPS
                             </a>
                             <a href="#" className="text-gray-800 hover:text-emerald-600 font-medium">
