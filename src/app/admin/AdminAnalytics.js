@@ -1,6 +1,5 @@
-import { auth, db } from '@/lib/firebase';
-
 "use client";
+
 import {
     Calendar, Users, BarChart3
 } from 'lucide-react';

@@ -1,6 +1,6 @@
 "use client";
 import { auth, db } from '@/lib/firebase';
-
+import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import React, { useState } from 'react';
 
@@ -26,6 +26,7 @@ export default function RegisterPage({ navigate }) {
     const [userEmail, setUserEmail] = useState('');
     const [loading, setLoading] = useState(false);
     const [agreeTerms, setAgreeTerms] = useState(false);
+    const router = useRouter();
 
     const handleGoogleSignUp = async () => {
         setLoading(true);
@@ -230,7 +231,7 @@ export default function RegisterPage({ navigate }) {
                 </form>
 
                 <p className="text-sm text-center text-gray-600">
-                    Already have an account? <button onClick={() => navigate('login')} className="font-medium text-blue-600 hover:underline">Sign In</button>
+                    Already have an account? <button onClick={() => router.push('/login')} className="font-medium text-blue-600 hover:underline">Sign In</button>
                 </p>
             </div>
         </div>

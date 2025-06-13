@@ -1,14 +1,14 @@
-import { auth, db } from '@/lib/firebase';
 "use client";
-import React, { useState, useEffect, useRef } from 'react';
+
+import React, { useState } from 'react';
 
 import {
-    Trash2
+    Trash2, Edit
 } from 'lucide-react';
 
-export default function KulinerManagement({ kuliners, addKuliner, deleteKuliner }) {
+export default function TourManagement({ tours, addTour, deleteTour, updateTour }) {
     const [title, setTitle] = useState('');
-    const [kulinerTime, setKulinerTime] = useState('');
+    const [time, setTime] = useState('');
     const [price, setPrice] = useState('');
     const [rating, setRating] = useState('');
     const [location, setLocation] = useState('');
@@ -18,6 +18,8 @@ export default function KulinerManagement({ kuliners, addKuliner, deleteKuliner 
     const [imageFile, setImageFile] = useState(null);
     const [imageUrl, setImageUrl] = useState('');
     const [uploading, setUploading] = useState(false);
+    const [editingTour, setEditingTour] = useState(null);
+    const [isEditing, setIsEditing] = useState(false);
 
     // Function untuk upload gambar
     const handleImageUpload = async (file) => {
@@ -50,34 +52,105 @@ export default function KulinerManagement({ kuliners, addKuliner, deleteKuliner 
         }
     };
 
-    const handleSubmit = async (e) => {
+    const startEditTour = (tour) => {
+        setEditingTour(tour);
+        setIsEditing(true);
+        
+        // Populate form dengan data tour yang akan diedit
+        setTitle(tour.title || '');
+        setTime(tour.time || '');
+        setPrice(tour.price || '');
+        setRating(tour.rating || '');
+        setLocation(tour.location || '');
+        setDesc(tour.desc || '');
+        setLatitude(tour.latitude || '');
+        setLongitude(tour.longtitude || '');
+        setImageUrl(tour.imgRes || '');
+    };
+
+    // Function untuk cancel edit
+    const cancelEdit = () => {
+        setEditingTour(null);
+        setIsEditing(false);
+        
+        // Reset form
+        setTitle('');
+        setTime('');
+        setPrice('');
+        setRating('');
+        setLocation('');
+        setDesc('');
+        setLatitude('');
+        setLongitude('');
+        setImageUrl('');
+        setImageFile(null);
+    };
+
+    // Function untuk update tour
+    const handleUpdateTour = async (e) => {
         e.preventDefault();
         
+        if (!editingTour) return;
+        
         if (title.trim() === '' || location.trim() === '' || desc.trim() === '' || 
-            price === '' || rating === '' || kulinerTime === '') {
+            price === '' || rating === '' || time === '') {
             alert('Mohon lengkapi semua field yang diperlukan');
             return;
         }
         
-        const kulinerData = {
+        const tourData = {
             title: title,
-            kulinerTime: kulinerTime,
+            time: time,
+            price: parseInt(price),
+            rating: parseFloat(rating),
+            location: location,
+            desc: desc,
+            latitude: latitude ? parseFloat(latitude) : 0,
+            longtitude: longitude ? parseFloat(longitude) : 0,
+            imgRes: imageUrl || 'https://placehold.co/600x400/166534/FFFFFF?text=Tour',
+            isFavorite: false,
+            updatedAt: new Date()
+        };
+
+        try {
+            // Panggil function updateTour dari props
+            await updateTour(editingTour.id, tourData);
+            alert('Tour berhasil diupdate!');
+            cancelEdit();
+        } catch (error) {
+            console.error('Error updating tour:', error);
+            alert('Gagal mengupdate tour');
+        }
+    };
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        
+        if (title.trim() === '' || location.trim() === '' || desc.trim() === '' || 
+            price === '' || rating === '' || time === '') {
+            alert('Mohon lengkapi semua field yang diperlukan');
+            return;
+        }
+        
+        const tourData = {
+            title: title,
+            time: time,
             price: parseInt(price),
             rating: parseFloat(rating),
             location: location,
             desc: desc,
             latitude: latitude ? parseFloat(latitude) : 0,
             longtitude: longitude ? parseFloat(longitude) : 0, // Note: typo sesuai Android
-            imgRes: imageUrl || 'https://placehold.co/600x400/166534/FFFFFF?text=Kuliner',
+            imgRes: imageUrl || 'https://placehold.co/600x400/166534/FFFFFF?text=Tour',
             isFavorite: false, // Hidden field, always false
             createdAt: new Date()
         };
 
-        await addKuliner(kulinerData);
+        await addTour(tourData);
 
         // Reset form
         setTitle('');
-        setKulinerTime('');
+        setTime('');
         setPrice('');
         setRating('');
         setLocation('');
@@ -90,31 +163,40 @@ export default function KulinerManagement({ kuliners, addKuliner, deleteKuliner 
 
     return (
         <div className="space-y-6">
-            <h2 className="text-2xl font-bold text-gray-900">Kelola Kuliner</h2>
+            <h2 className="text-2xl font-bold text-gray-900">Kelola Tour</h2>
             
-            {/* Form Tambah Kuliner */}
+            {/* Form Tambah Tour */}
             <div className="bg-white p-6 rounded-lg shadow-md">
-                <h3 className="text-xl font-semibold mb-4">Tambah Kuliner Baru</h3>
-                <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <h3 className="text-xl font-semibold mb-4">
+                    {isEditing ? `Edit Tour: ${editingTour?.title}` : 'Tambah Tour Baru'}
+                </h3>
+                {isEditing && (
+                    <div className="mb-4 p-3 bg-blue-100 border border-blue-400 text-blue-700 rounded">
+                        <p className="text-sm">
+                            <strong>Mode Edit:</strong> Anda sedang mengedit tour "{editingTour?.title}"
+                        </p>
+                    </div>
+                )}
+                <form onSubmit={isEditing ? handleUpdateTour : handleSubmit} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {/* Title */}
                     <div className="lg:col-span-2">
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Nama Kuliner</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Nama Tour</label>
                         <input 
                             value={title} 
                             onChange={e => setTitle(e.target.value)} 
-                            placeholder="Nama Kuliner" 
+                            placeholder="Nama Tour" 
                             className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-emerald-500" 
                             required
                         />
                     </div>
 
-                    {/* Kuliner Time */}
+                    {/* Time */}
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Jam Operasional</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Waktu Tour</label>
                         <input 
-                            value={kulinerTime} 
-                            onChange={e => setKulinerTime(e.target.value)} 
-                            placeholder="10 AM - 9 PM" 
+                            value={time} 
+                            onChange={e => setTime(e.target.value)} 
+                            placeholder="10 AM" 
                             className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-emerald-500" 
                             required
                         />
@@ -126,7 +208,7 @@ export default function KulinerManagement({ kuliners, addKuliner, deleteKuliner 
                         <input 
                             value={location} 
                             onChange={e => setLocation(e.target.value)} 
-                            placeholder="Lokasi Kuliner" 
+                            placeholder="Lokasi Tour" 
                             className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-emerald-500" 
                             required
                         />
@@ -139,7 +221,7 @@ export default function KulinerManagement({ kuliners, addKuliner, deleteKuliner 
                             type="number"
                             value={price} 
                             onChange={e => setPrice(e.target.value)} 
-                            placeholder="25000" 
+                            placeholder="150000" 
                             className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-emerald-500" 
                             required
                             min="0"
@@ -169,7 +251,7 @@ export default function KulinerManagement({ kuliners, addKuliner, deleteKuliner 
                             type="number"
                             value={latitude} 
                             onChange={e => setLatitude(e.target.value)} 
-                            placeholder="-7.5709241" 
+                            placeholder="-7.574178450295152" 
                             className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-emerald-500" 
                             step="any"
                         />
@@ -182,7 +264,7 @@ export default function KulinerManagement({ kuliners, addKuliner, deleteKuliner 
                             type="number"
                             value={longitude} 
                             onChange={e => setLongitude(e.target.value)} 
-                            placeholder="110.7926132" 
+                            placeholder="110.81591618151339" 
                             className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-emerald-500" 
                             step="any"
                         />
@@ -190,7 +272,7 @@ export default function KulinerManagement({ kuliners, addKuliner, deleteKuliner 
 
                     {/* Upload Gambar */}
                     <div className="lg:col-span-3">
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Gambar Kuliner</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Gambar Tour</label>
                         <input 
                             type="file" 
                             accept="image/*"
@@ -219,11 +301,11 @@ export default function KulinerManagement({ kuliners, addKuliner, deleteKuliner 
                     
                     {/* Deskripsi */}
                     <div className="lg:col-span-3">
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Deskripsi Kuliner</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Deskripsi Tour</label>
                         <textarea 
                             value={desc} 
                             onChange={e => setDesc(e.target.value)} 
-                            placeholder="Deskripsi lengkap kuliner..." 
+                            placeholder="Deskripsi lengkap tour..." 
                             className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-emerald-500"
                             rows="4"
                             required
@@ -237,8 +319,17 @@ export default function KulinerManagement({ kuliners, addKuliner, deleteKuliner 
                             className="w-full md:w-auto px-6 py-3 font-semibold text-white bg-emerald-600 rounded-md hover:bg-emerald-700 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                             disabled={uploading}
                         >
-                            {uploading ? 'Processing...' : 'Simpan Kuliner'}
+                            {uploading ? 'Processing...' : isEditing ? 'Update Tour' : 'Simpan Tour'}
                         </button>
+                        {isEditing && (
+                            <button 
+                                type="button"
+                                onClick={cancelEdit}
+                                className="px-6 py-3 font-semibold text-gray-700 bg-gray-300 rounded-md hover:bg-gray-400 transition-colors"
+                            >
+                                Cancel
+                            </button>
+                        )}
                     </div>
                 </form>
             </div>
@@ -246,11 +337,11 @@ export default function KulinerManagement({ kuliners, addKuliner, deleteKuliner 
             {/* Preview Gambar */}
             {imageUrl && (
                 <div className="bg-white p-4 rounded-lg shadow-md">
-                    <h4 className="font-semibold mb-3 text-gray-700">Preview Gambar Kuliner:</h4>
+                    <h4 className="font-semibold mb-3 text-gray-700">Preview Gambar Tour:</h4>
                     <div className="flex items-start space-x-4">
                         <img 
                             src={imageUrl} 
-                            alt="Preview Kuliner" 
+                            alt="Preview Tour" 
                             className="max-w-xs h-auto rounded-lg shadow-sm border"
                         />
                         <div className="flex-1">
@@ -271,62 +362,71 @@ export default function KulinerManagement({ kuliners, addKuliner, deleteKuliner 
                 </div>
             )}
 
-            {/* Tabel Daftar Kuliner */}
+            {/* Tabel Daftar Tour */}
             <div className="bg-white p-6 rounded-lg shadow-md">
-                <h3 className="text-xl font-semibold mb-4">Daftar Kuliner</h3>
+                <h3 className="text-xl font-semibold mb-4">Daftar Tour</h3>
                 <div className="overflow-x-auto">
                     <table className="min-w-full divide-y divide-gray-200">
                         <thead className="bg-gray-50">
                             <tr>
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Gambar</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Kuliner</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tour</th>
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Lokasi</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Jam Operasional</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Waktu</th>
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Harga</th>
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Rating</th>
                                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Aksi</th>
                             </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-200">
-                            {kuliners.map(kuliner => (
-                                <tr key={kuliner.id}>
+                            {tours.map(tour => (
+                                <tr key={tour.id}>
                                     <td className="px-6 py-4 whitespace-nowrap">
                                         <img 
-                                            src={kuliner.imgRes} 
-                                            alt={kuliner.title}
+                                            src={tour.imgRes} 
+                                            alt={tour.title}
                                             className="h-12 w-12 rounded-lg object-cover"
                                         />
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap">
                                         <div className="font-medium text-gray-900">
-                                            {kuliner.title}
+                                            {tour.title}
                                         </div>
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-gray-500">
-                                        {kuliner.location}
+                                        {tour.location}
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-gray-500">
-                                        {kuliner.kulinerTime}
+                                        {tour.time}
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-gray-500">
-                                        Rp {kuliner.price.toLocaleString('id-ID')}
+                                        Rp {tour.price.toLocaleString('id-ID')}
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap">
                                         <div className="flex items-center">
                                             <span className="text-yellow-400">★</span>
                                             <span className="ml-1 text-sm text-gray-600">
-                                                {kuliner.rating}
+                                                {tour.rating}
                                             </span>
                                         </div>
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-right">
-                                        <button 
-                                            onClick={() => deleteKuliner(kuliner.id)} 
-                                            className="text-red-600 hover:text-red-800 transition-colors"
-                                            title="Hapus Kuliner"
-                                        >
-                                            <Trash2 className="h-5 w-5" />
-                                        </button>
+                                        <div className="flex justify-end space-x-2">
+                                            <button 
+                                                onClick={() => startEditTour(tour)}
+                                                className="text-blue-600 hover:text-blue-800 transition-colors"
+                                                title="Edit Tour"
+                                            >
+                                                <Edit className="h-5 w-5" />
+                                            </button>
+                                            <button 
+                                                onClick={() => deleteTour(tour.id)} 
+                                                className="text-red-600 hover:text-red-800 transition-colors"
+                                                title="Hapus Tour"
+                                            >
+                                                <Trash2 className="h-5 w-5" />
+                                            </button>
+                                        </div>
                                     </td>
                                 </tr>
                             ))}
