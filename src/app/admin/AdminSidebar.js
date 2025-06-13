@@ -1,11 +1,10 @@
-import { auth, db } from '@/lib/firebase';
-
 "use client";
+
 import {
     Calendar, Home, Settings, UtensilsCrossed, Users, LogOut, BarChart3, Shield, MapPin
 } from 'lucide-react';
 
-export default function AdminSidebar({ activeTab, setActiveTab, navigate, handleLogout }) {
+export default function AdminSidebar({ activeTab, setActiveTab, router, handleLogout }) {
     const menuItems = [
         { id: 'dashboard', label: 'Dashboard', icon: Home },
         { id: 'events', label: 'Kelola Event', icon: Calendar },
@@ -57,7 +56,7 @@ export default function AdminSidebar({ activeTab, setActiveTab, navigate, handle
             {/* Bottom Actions */}
             <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-200">
                 <button
-                    onClick={() => navigate('home')}
+                    onClick={() => router.push('/')}
                     className="w-full flex items-center px-3 py-2 text-gray-600 hover:bg-gray-100 rounded-lg mb-2 transition-colors"
                 >
                     <Home className="w-5 h-5 mr-3" />

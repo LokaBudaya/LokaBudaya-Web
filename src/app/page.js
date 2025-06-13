@@ -2,18 +2,53 @@
 
 import { useState, useEffect } from "react";
 import { collection, onSnapshot } from "firebase/firestore";
-import { db } from "@/lib/firebase";
-
+import { auth, db } from "@/lib/firebase";
+import { onAuthStateChanged } from "firebase/auth";
+import { doc, getDoc } from "firebase/firestore";
+import { useRouter } from 'next/navigation';
 import HeroSection from "@/components/ui/HeroSection";
 import CategorySection from "@/components/ui/CategorySection";
 import DestinationCarousel from "@/components/DestinationCarousel";
 import Navbar from "@/components/ui/Navbar";
 
 export default function HomePage() {
+  const router = useRouter();
   const [events, setEvents] = useState([]);
   const [filteredEvents, setFilteredEvents] = useState([]);
   const [tours, setTours] = useState([]);
   const [kuliners, setKuliners] = useState([]);
+  
+  // TAMBAH: State untuk authentication
+  const [user, setUser] = useState(null);
+  const [userData, setUserData] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  // TAMBAH: Handle authentication state
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      if (currentUser) {
+        setUser(currentUser);
+        
+        // Ambil data user dari Firestore
+        try {
+          const userDocRef = doc(db, 'users', currentUser.uid);
+          const userDoc = await getDoc(userDocRef);
+          
+          if (userDoc.exists()) {
+            setUserData(userDoc.data());
+          }
+        } catch (error) {
+          console.error('Error fetching user data:', error);
+        }
+      } else {
+        setUser(null);
+        setUserData(null);
+      }
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   // Ambil data events
   useEffect(() => {
@@ -80,9 +115,19 @@ export default function HomePage() {
     setFilteredEvents(filtered);
   };
 
+  // Loading state
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
   return (
     <div>
-      <Navbar></Navbar>
+      {/* Pass user dan userData ke Navbar */}
+      <Navbar user={user} userData={userData} />
       <HeroSection onFilterChange={handleFilterChange} />
       <CategorySection events={filteredEvents} tours={tours} kuliners={kuliners} />
       <DestinationCarousel />

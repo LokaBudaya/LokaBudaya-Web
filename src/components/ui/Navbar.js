@@ -2,17 +2,20 @@
 
 import Image from 'next/image';
 import Link from "next/link";
+import { useRouter } from 'next/navigation';
 import React, { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
 
 import { signOut } from 'firebase/auth';
+import { auth } from '@/lib/firebase';
 import { User } from 'lucide-react';
 
-export default function Navbar({ user, userData, navigate }) {
+export default function Navbar({ user, userData }) {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [isVisible, setIsVisible] = useState(true);
     const [color, setColor] = useState(true);
     const pathname = usePathname();
+    const router = useRouter();
 
     const navItems = [
         { name: 'Home', href: '/' },
@@ -21,8 +24,12 @@ export default function Navbar({ user, userData, navigate }) {
     ];
     
     const handleLogout = async () => {
-        await signOut(auth);
-        navigate('home');
+        try {
+            await signOut(auth);
+            router.push('/');
+        } catch (error) {
+            console.error('Logout error:', error);
+        }
     };
 
     useEffect(()=> {
@@ -55,6 +62,9 @@ export default function Navbar({ user, userData, navigate }) {
         }
 
         window.addEventListener('scroll', changeColor);
+        
+        // TAMBAH cleanup
+        return () => window.removeEventListener('scroll', changeColor);
     }, []);
 
     return (
@@ -98,19 +108,25 @@ export default function Navbar({ user, userData, navigate }) {
                             <div className="relative group">
                                 <button className="flex items-center space-x-2 text-white hover:text-emerald-300 transition-colors duration-200">
                                     <User size={20} />
-                                    <span className="font-medium">{userData?.name || user.email}</span>
+                                    <span className="font-medium">
+                                        {userData?.profile?.displayname || userData?.name || user.email}
+                                    </span>
                                 </button>
                                 <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg py-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
                                     {userData?.role === 'admin' && (
-                                        <a href="#" onClick={() => navigate('admin')} 
-                                           className="block px-4 py-2 text-sm text-gray-700 hover:bg-emerald-50 hover:text-emerald-700">
+                                        <button 
+                                            onClick={() => router.push('/admin')}
+                                            className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-emerald-50 hover:text-emerald-700"
+                                        >
                                             Admin Panel
-                                        </a>
+                                        </button>
                                     )}
-                                    <a href="#" onClick={handleLogout} 
-                                       className="block px-4 py-2 text-sm text-gray-700 hover:bg-emerald-50 hover:text-emerald-700">
+                                    <button 
+                                        onClick={handleLogout}
+                                        className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-emerald-50 hover:text-emerald-700"
+                                    >
                                         Log Out
-                                    </a>
+                                    </button>
                                 </div>
                             </div>
                         ) : (
@@ -143,45 +159,61 @@ export default function Navbar({ user, userData, navigate }) {
                 {isMenuOpen && (
                     <div className="md:hidden bg-white/95 backdrop-blur-md rounded-lg mt-2 py-4 px-4 shadow-lg">
                         <div className="flex flex-col space-y-4">
-                            <a href="#" onClick={() => navigate('home')} 
-                               className="text-gray-800 hover:text-emerald-600 font-medium">
-                                HOME
-                            </a>
-                            <a href="#" className="text-gray-800 hover:text-emerald-600 font-medium">
-                                PARTNERSHIPS
-                            </a>
-                            <a href="#" className="text-gray-800 hover:text-emerald-600 font-medium">
-                                ABOUT US
-                            </a>
-                            <a href="#" className="text-gray-800 hover:text-emerald-600 font-medium">
-                                BLOGS
-                            </a>
+                            {navItems.map((item) => (
+                                <Link 
+                                    key={item.href}
+                                    href={item.href}
+                                    onClick={() => setIsMenuOpen(false)}
+                                    className="text-gray-800 hover:text-emerald-600 font-medium"
+                                >
+                                    {item.name.toUpperCase()}
+                                </Link>
+                            ))}
+                            
                             {user ? (
                                 <>
                                     <div className="border-t pt-4">
-                                        <p className="text-gray-600 text-sm">{userData?.name || user.email}</p>
+                                        <p className="text-gray-600 text-sm">
+                                            {userData?.profile?.displayname || userData?.name || user.email}
+                                        </p>
                                         {userData?.role === 'admin' && (
-                                            <a href="#" onClick={() => navigate('admin')} 
-                                               className="block mt-2 text-emerald-600 font-medium">
+                                            <button 
+                                                onClick={() => {
+                                                    router.push('/admin');
+                                                    setIsMenuOpen(false);
+                                                }}
+                                                className="block mt-2 text-emerald-600 font-medium"
+                                            >
                                                 Admin Panel
-                                            </a>
+                                            </button>
                                         )}
-                                        <button onClick={handleLogout} 
-                                                className="block mt-2 text-red-600 font-medium">
+                                        <button 
+                                            onClick={() => {
+                                                handleLogout();
+                                                setIsMenuOpen(false);
+                                            }}
+                                            className="block mt-2 text-red-600 font-medium"
+                                        >
                                             Log Out
                                         </button>
                                     </div>
                                 </>
                             ) : (
                                 <div className="flex flex-col space-y-2 border-t pt-4">
-                                    <button onClick={() => navigate('login')} 
-                                            className="px-4 py-2 text-emerald-600 border border-emerald-600 rounded-full font-medium">
+                                    <Link 
+                                        href="/login"
+                                        onClick={() => setIsMenuOpen(false)}
+                                        className="px-4 py-2 text-emerald-600 border border-emerald-600 rounded-full font-medium text-center"
+                                    >
                                         Log In
-                                    </button>
-                                    <button onClick={() => navigate('register')} 
-                                            className="px-4 py-2 bg-emerald-600 text-white rounded-full font-medium">
+                                    </Link>
+                                    <Link 
+                                        href="/register"
+                                        onClick={() => setIsMenuOpen(false)}
+                                        className="px-4 py-2 bg-emerald-600 text-white rounded-full font-medium text-center"
+                                    >
                                         Sign Up
-                                    </button>
+                                    </Link>
                                 </div>
                             )}
                         </div>

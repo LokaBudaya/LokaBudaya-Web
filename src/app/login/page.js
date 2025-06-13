@@ -20,7 +20,7 @@ import {
     where
 } from 'firebase/firestore';
 
-export default function LoginPage({ navigate }) {
+export default function LoginPage({ }) {
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
@@ -63,8 +63,8 @@ export default function LoginPage({ navigate }) {
                     isEmailVerified: user.emailVerified 
                 }, { merge: true });
             }
-            setLoading(false)
-            router.push('/login');
+            setLoading(false);
+            router.push('/');
         } catch (error) {
             if (error.code === 'auth/popup-closed-by-user') {
             setLoading(false);
@@ -116,7 +116,7 @@ export default function LoginPage({ navigate }) {
                 isEmailVerified: true 
             }, { merge: true });
             
-            navigate('home');
+            router.push('/');
         } catch (err) {
             console.error('Login error:', err);
             switch (err.code) {
@@ -236,7 +236,7 @@ export default function LoginPage({ navigate }) {
                 </form>
 
                 <p className="text-sm text-center text-gray-600">
-                    Don't have account? <button onClick={() => navigate('register')} className="font-medium text-blue-600 hover:underline">Sign up</button>
+                    Don't have account? <button onClick={() => router.push('/register')} className="font-medium text-blue-600 hover:underline">Sign up</button>
                 </p>
             </div>
         </div>

@@ -1,6 +1,10 @@
-import { auth, db } from '@/lib/firebase';
-import UserDetailModal from './UserDetailModal';
+"use client";
 
+import React, { useState } from 'react';
+import { Search, Users, Shield, Settings, Calendar } from 'lucide-react';
+import { setDoc, doc } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import UserDetailModal from './UserDetailModal';
 export default function UserManagement({ users }) {
     const [searchTerm, setSearchTerm] = useState('');
     const [filterRole, setFilterRole] = useState('all');

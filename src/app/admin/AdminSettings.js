@@ -1,5 +1,3 @@
-import { auth, db } from '@/lib/firebase';
-
 "use client";
 
 export default function AdminSettings() {
