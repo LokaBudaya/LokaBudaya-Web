@@ -1,52 +1,95 @@
 "use client";
 
 import Image from 'next/image';
-import React, { useState } from 'react';
+import Link from "next/link";
+import React, { useEffect, useState } from 'react';
+import { usePathname } from 'next/navigation';
 
 import { signOut } from 'firebase/auth';
 import { User } from 'lucide-react';
 
 export default function Navbar({ user, userData, navigate }) {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const [isVisible, setIsVisible] = useState(true);
+    const [color, setColor] = useState(true);
+    const pathname = usePathname();
 
+    const navItems = [
+        { name: 'Home', href: '/' },
+        { name: 'Partnership', href: '/partnership' },
+        { name: 'About', href: '/about' },
+    ];
+    
     const handleLogout = async () => {
         await signOut(auth);
         navigate('home');
     };
 
+    useEffect(()=> {
+        let lastScrollY = window.scrollY;
+
+        const controlNavbar = () => {
+            const currentScrollY = window.scrollY;
+
+            if (currentScrollY > lastScrollY && currentScrollY > 100) {
+                setIsVisible(false);
+            } else {
+                setIsVisible(true);
+            }
+
+            lastScrollY = currentScrollY;
+        }
+
+        window.addEventListener("scroll", controlNavbar);
+
+        return () => window.removeEventListener("scroll", controlNavbar);
+    }, []);
+
+    useEffect(()=>{
+        const changeColor = () => {
+            if (window.scrollY > 40) {
+                setColor(true);
+            } else {
+                setColor(false);
+            }
+        }
+
+        window.addEventListener('scroll', changeColor);
+    }, []);
+
     return (
-        <header className="absolute top-0 left-0 right-0 z-50 bg-transparent">
-            <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div className="flex justify-between items-center h-20">
+        <header className={`fixed top-0 left-0 right-0 z-50 bg-transparent transition-all duration-400 mt-4 border-b 
+            ${ isVisible ? "translate-y-0" : "-translate-y-24" }
+            ${ color ? "border-transparent" : "border-b-white" }
+         `}>
+            <nav className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 transition-all duration-200
+                ${ color ? "rounded-2xl bg-blue-950" : "bg-transparent" }`}>
+                <div className="flex justify-between items-center h-18">
                     {/* Logo */}
                     <div className="flex-shrink-0">
-                        <a href="#" onClick={() => navigate('home')} className="flex items-center">
+                        <Link href="/" className="flex items-center">
                             <Image 
                                 src="/images/logo.png" 
                                 alt="LokaBudaya Logo" 
-                                width={135}
-                                height={45}
-                                className="h-auto w-auto"
+                                width={164}
+                                height={86}
                                 priority
                             />
-                        </a>
+                        </Link>
                     </div>
 
                     {/* Desktop Navigation */}
-                    <div className="hidden md:flex items-center space-x-8">
-                        <a href="#" onClick={() => navigate('home')} 
-                           className="text-white hover:text-emerald-300 transition-colors duration-200 font-medium">
-                            HOME
-                        </a>
-                        <a href="#" className="text-white hover:text-emerald-300 transition-colors duration-200 font-medium">
-                            PARTNERSHIPS
-                        </a>
-                        <a href="#" className="text-white hover:text-emerald-300 transition-colors duration-200 font-medium">
-                            ABOUT US
-                        </a>
-                        <a href="#" className="text-white hover:text-emerald-300 transition-colors duration-200 font-medium">
-                            BLOGs
-                        </a>
+                    <div className="hidden md:flex items-center space-x-24">
+                        {navItems.map((item) => (
+                        <Link
+                        key={item.href}
+                        href={item.href}
+                        className={`hover:text-lg transition-all duration-200 font-medium font-aboreto ${
+                            pathname === item.href ? 'text-lokabudayagold border-b border-b-lokabudayagold' : 'text-white hover:text-emerald-300'
+                        }`}>
+                            {item.name}
+                        </Link>
+                    ))}
                     </div>
 
                     {/* Right Side - Auth Buttons */}
@@ -71,16 +114,16 @@ export default function Navbar({ user, userData, navigate }) {
                                 </div>
                             </div>
                         ) : (
-                            <>
-                                <button onClick={() => navigate('login')} 
-                                        className="px-6 py-2 text-white border border-white rounded-full hover:bg-white hover:text-emerald-800 transition-all duration-200 font-medium">
-                                    Log In
-                                </button>
-                                <button onClick={() => navigate('register')} 
-                                        className="px-6 py-2 bg-emerald-600 text-white rounded-full hover:bg-emerald-700 transition-all duration-200 font-medium">
+                            <div>
+                                <Link href={'/register'}
+                                        className="mx-2 px-5 py-2 text-white border border-white rounded-lg hover:bg-white hover:text-black hover:px-6 transition-all duration-200 font-medium">
                                     Sign Up
-                                </button>
-                            </>
+                                </Link>
+                                <Link href={'/login'} 
+                                        className="mx-2 px-6 py-2 bg-lokabudayagold text-white rounded-lg hover:bg-lokabudaya_gold_hover_dark hover:px-7 transition-all duration-200 font-medium">
+                                    Login
+                                </Link>
+                            </div>
                         )}
                     </div>
 

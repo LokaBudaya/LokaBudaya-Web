@@ -1,8 +1,6 @@
 "use client";
-import React from 'react';
 import { auth, db } from '@/lib/firebase';
-
-"use client";
+import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import React, { useState } from 'react';
 
@@ -27,6 +25,7 @@ export default function LoginPage({ navigate }) {
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
+    const router = useRouter();
 
     const handleGoogleSignIn = async () => {
         setLoading(true);
@@ -64,11 +63,15 @@ export default function LoginPage({ navigate }) {
                     isEmailVerified: user.emailVerified 
                 }, { merge: true });
             }
-            
-            navigate('home');
+            setLoading(false)
+            router.push('/login');
         } catch (error) {
+            if (error.code === 'auth/popup-closed-by-user') {
+            setLoading(false);
+        } else {
             console.error('Google sign-in error:', error);
             setError('Gagal masuk dengan Google. Silakan coba lagi.');
+        }
         } finally {
             setLoading(false);
         }

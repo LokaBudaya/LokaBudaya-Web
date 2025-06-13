@@ -43,9 +43,7 @@ export default function FilterSection({ onFilterChange }) {
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
                     {/* Location Dropdown */}
                     <div className="relative">
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Location
-                        </label>
+                        <label className="block text-sm font-medium text-gray-700 mb-2"></label>
                         <div className="relative">
                             <select 
                                 value={selectedLocation}
@@ -53,7 +51,7 @@ export default function FilterSection({ onFilterChange }) {
                                     setSelectedLocation(e.target.value);
                                     setTimeout(handleFilterChange, 0);
                                 }}
-                                className="w-full px-4 py-3 border border-gray-300 rounded-lg appearance-none bg-white focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                                className="cursor-pointer w-full px-4 py-3 appearance-none bg-white focus:ring-5 focus:bg-transparent focus:border-transparent font-semibold"
                             >
                                 {locations.map(location => (
                                     <option key={location.value} value={location.value}>
@@ -61,16 +59,14 @@ export default function FilterSection({ onFilterChange }) {
                                     </option>
                                 ))}
                             </select>
-                            <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+                            <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 text-black" size={20} />
                         </div>
                         <p className="text-xs text-gray-500 mt-1">Relevant to You</p>
                     </div>
 
                     {/* Category Dropdown */}
                     <div className="relative">
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Category
-                        </label>
+                        <label className="block text-sm font-medium text-gray-700 mb-2"></label>
                         <div className="relative">
                             <select 
                                 value={selectedCategory}
@@ -93,9 +89,7 @@ export default function FilterSection({ onFilterChange }) {
 
                     {/* Date Picker */}
                     <div className="relative">
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Date
-                        </label>
+                        <label className="block text-sm font-medium text-gray-700 mb-2"></label>
                         <div className="relative">
                             <input 
                                 type="date"

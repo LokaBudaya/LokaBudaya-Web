@@ -1,5 +1,4 @@
 "use client";
-import React from 'react';
 import { auth, db } from '@/lib/firebase';
 
 import Image from 'next/image';

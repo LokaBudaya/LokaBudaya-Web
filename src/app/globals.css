@@ -3,6 +3,13 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  --font-aboreto: var(--font-aboreto);
+  --font-inter: var(--font-inter);
+  --font-poppins: var(--font-poppins);
+}
+
+*{
+  scroll-behavior: smooth;
 }
 
 @theme {
@@ -28,6 +35,9 @@
   --color-emerald-700: #3d4f82;
   --color-emerald-800: #2e3b63;
   --color-emerald-900: #1e2744;
+
+  --color-lokabudayagold: #D5C578;
+  --color-lokabudaya_gold_hover_dark: #9D8C3A
 }
 
 .line-clamp-2 {
@@ -59,16 +69,29 @@
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
-
+/* 
 @media (prefers-color-scheme: dark) {
   :root {
     --background: #0a0a0a;
     --foreground: #ededed;
   }
-}
+} */
 
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+/* Font utility classes */
+.font-aboreto {
+  font-family: var(--font-aboreto), serif;
+}
+
+.font-inter {
+  font-family: var(--font-inter), sans-serif;
+}
+
+.font-poppins {
+  font-family: var(--font-poppins), sans-serif;
 }
