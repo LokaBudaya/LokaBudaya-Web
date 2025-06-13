@@ -43,7 +43,6 @@ export default function FilterSection({ onFilterChange }) {
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
                     {/* Location Dropdown */}
                     <div className="relative">
-                        <label className="block text-sm font-medium text-gray-700 mb-2"></label>
                         <div className="relative">
                             <select 
                                 value={selectedLocation}
@@ -51,7 +50,7 @@ export default function FilterSection({ onFilterChange }) {
                                     setSelectedLocation(e.target.value);
                                     setTimeout(handleFilterChange, 0);
                                 }}
-                                className="cursor-pointer w-full px-4 py-3 appearance-none bg-white focus:ring-5 focus:bg-transparent focus:border-transparent font-semibold"
+                                className="cursor-pointer w-full px-4 py-3 appearance-none bg-white border border-white font-semibold"
                             >
                                 {locations.map(location => (
                                     <option key={location.value} value={location.value}>
