@@ -10,11 +10,14 @@ import HeroSection from "@/components/ui/HeroSection";
 import CategorySection from "@/components/ui/CategorySection";
 import DestinationCarousel from "@/components/DestinationCarousel";
 import Navbar from "@/components/ui/Navbar";
+import AllCategorySections from "@/components/AllCategorySections";
+import YourDiscoveryFeed from "@/components/YourDiscoveryFeed";
+import Footer from "@/components/ui/Footer";
 
 export default function HomePage() {
   const router = useRouter();
   const [events, setEvents] = useState([]);
-  const [filteredEvents, setFilteredEvents] = useState([]);
+  const [filtered, setFiltered] = useState([]);
   const [tours, setTours] = useState([]);
   const [kuliners, setKuliners] = useState([]);
   
@@ -58,7 +61,7 @@ export default function HomePage() {
         ...doc.data(),
       }));
       setEvents(data);
-      setFilteredEvents(data);
+      setFiltered(data);
     });
 
     return () => unsub();
@@ -80,8 +83,8 @@ export default function HomePage() {
     };
   }, []);
 
-  const handleFilterChange = (filters) => {
-    let filtered = events;
+  const handleFilterChange = (filters, data) => {
+    let filtered = [data];
 
     if (filters.location && filters.location !== "all") {
       filtered = filtered.filter((event) =>
@@ -112,7 +115,15 @@ export default function HomePage() {
       );
     }
 
-    setFilteredEvents(filtered);
+    setFiltered(filtered);
+
+    const filteredEvents = handleFilterChange(filters, events);
+    const filteredTours = handleFilterChange(filters, tours);
+    const filteredKuliners = handleFilterChange(filters, kuliners);
+
+    setEvents(filteredEvents);
+    setTours(filteredTours);
+    setKuliners(filteredKuliners);
   };
 
   // Loading state
@@ -129,8 +140,10 @@ export default function HomePage() {
       {/* Pass user dan userData ke Navbar */}
       <Navbar user={user} userData={userData} />
       <HeroSection onFilterChange={handleFilterChange} />
-      <CategorySection events={filteredEvents} tours={tours} kuliners={kuliners} />
+      <AllCategorySections events={filtered} tours={tours} kuliners={kuliners} />
       <DestinationCarousel />
+      <YourDiscoveryFeed></YourDiscoveryFeed>
+      <Footer></Footer>
     </div>
   );
 }

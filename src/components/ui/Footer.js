@@ -1,7 +1,5 @@
 "use client";
-import React from 'react';
 
-"use client";
 import React, { useState, useEffect, useRef } from 'react';
 
 import {
@@ -17,7 +15,7 @@ export default function Footer() {
                     <div className="col-span-1 md:col-span-1">
                         <div className="mb-6">
                             <img 
-                                src="/images/logo.png" 
+                                src="/images/logo.svg" 
                                 alt="LokaBudaya Logo" 
                                 className="h-8 w-auto mb-4"
                             />

@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
+  --background: #f6f6f6;
   --foreground: #171717;
   --font-aboreto: var(--font-aboreto);
   --font-inter: var(--font-inter);
@@ -10,6 +10,11 @@
 
 *{
   scroll-behavior: smooth;
+  font-family: var(--font-poppins);
+}
+
+body{
+  overflow-x: hidden;
 }
 
 @theme {
@@ -37,7 +42,14 @@
   --color-emerald-900: #1e2744;
 
   --color-lokabudayagold: #D5C578;
-  --color-lokabudaya_gold_hover_dark: #9D8C3A
+  --color-lokabudaya_gold_hover_dark: #9D8C3A;
+
+  --color-lookabudaya_dark_blue: #1D293D;
+  --color-lookabudaya_dark_blue_hover: #293750;
+  
+  --color-lokabudaya_tour: #76395F;
+  --color-lokabudaya_event: #466F79;
+  --color-lokabudaya_kuliner: #9A5F38;
 }
 
 .line-clamp-2 {
@@ -94,4 +106,12 @@ body {
 
 .font-poppins {
   font-family: var(--font-poppins), sans-serif;
+}
+
+@layer utilities {
+  .custom-date-input::-webkit-inner-spin-button,
+  .custom-date-input::-webkit-calendar-picker-indicator {
+    opacity: 0;
+    -webkit-appearance: none;
+  }
 }

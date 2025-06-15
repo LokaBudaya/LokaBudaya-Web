@@ -1,182 +1,196 @@
 "use client";
-import React from 'react';
 
-export default function CategorySection({ events, tours, kuliners }) {
+import React, { useState, useRef } from 'react';
+import CategoryCard from "./CategoryCard";
+
+import {
+    ChevronLeft, ChevronRight
+} from 'lucide-react';
+
+export default function CategorySection({ items = [], type }) {
     // Ambil top 3 berdasarkan rating tertinggi
-    const getTopRated = (items, count = 3) => {
+    const getTopRated = (items = [], count = 3) => {
         return items
             .filter(item => item.rating && item.rating > 0)
             .sort((a, b) => b.rating - a.rating)
             .slice(0, count);
     };
 
-    const topTours = getTopRated(tours);
-    const topEvents = getTopRated(events);
-    const topKuliners = getTopRated(kuliners);
+    const topItems = getTopRated(items);
 
-    const CategoryCard = ({ item, type }) => {
-        const formatDate = (date) => {
-            if (!date) return '';
-            const dateObj = date.toDate ? date.toDate() : new Date(date);
-            return dateObj.toLocaleDateString('id-ID', { 
-                day: 'numeric', 
-                month: 'long', 
-                year: 'numeric' 
-            });
-        };
+    const scrollRef = useRef(null);
+    const [showLeftArrow, setShowLeftArrow] = useState(false);
+    const [showRightArrow, setShowRightArrow] = useState(true);
 
-        const getLocation = () => {
-            return item.location || item.lokasi || 'Location not specified';
-        };
+    const itemCards = topItems.map(item => (
+            <CategoryCard key={item.id} item={item} type={type} />
+        ));
 
-        const getTitle = () => {
-            return item.title || item.nama_event || 'Untitled';
-        };
+    const scrollLeft = () => {
+        if (scrollRef.current) {
+            scrollRef.current.scrollBy({ left: -300, behavior: 'smooth' });
+        }
+    };
 
-        const getDescription = () => {
-            return item.desc || item.deskripsi || 'No description available';
-        };
+    const scrollRight = () => {
+        if (scrollRef.current) {
+            scrollRef.current.scrollBy({ left: 300, behavior: 'smooth' });
+        }
+    };
 
-        const getImage = () => {
-            return item.imgRes || item.gambar_event || 'https://placehold.co/400x300/166534/FFFFFF?text=' + type;
-        };
-
-        const getPrice = () => {
-            return item.price || item.harga_tiket || 0;
-        };
-
-        const getAdditionalInfo = () => {
-            if (type === 'Tour') {
-                return item.time || '10 AM';
-            } else if (type === 'Event') {
-                return formatDate(item.startDate || item.tanggal_event);
-            } else if (type === 'Kuliner') {
-                return item.kulinerTime || '10 AM - 9 PM';
-            }
-            return '';
-        };
-
-        return (
-            <div className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
-                <div className="relative">
-                    <img 
-                        src={getImage()} 
-                        alt={getTitle()}
-                        className="w-full h-48 object-cover"
-                    />
-                    <div className="absolute top-3 left-3">
-                        <span className="bg-white px-2 py-1 rounded text-xs font-medium text-gray-700">
-                            {getAdditionalInfo()}
-                        </span>
-                    </div>
-                    <div className="absolute top-3 right-3">
-                        <span className="bg-white px-2 py-1 rounded text-xs font-medium text-gray-700">
-                            {getLocation()}
-                        </span>
-                    </div>
-                </div>
-                
-                <div className="p-4">
-                    <h3 className="font-bold text-lg text-gray-900 mb-2 line-clamp-2">
-                        {getTitle()}
-                    </h3>
-                    
-                    <p className="text-gray-600 text-sm mb-3 line-clamp-2">
-                        {getDescription()}
-                    </p>
-                    
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-2">
-                            <span className="text-emerald-600 font-bold text-lg">
-                                Rp {getPrice().toLocaleString('id-ID')}
-                            </span>
-                        </div>
-                        
-                        <div className="flex items-center space-x-4">
-                            <button className="p-2 rounded-full border border-gray-300 hover:bg-gray-50">
-                                <span className="text-sm">Details</span>
-                            </button>
-                            <button className="p-2 rounded-full border border-gray-300 hover:bg-gray-50">
-                                <span className="text-sm">❤️</span>
-                            </button>
-                        </div>
-                    </div>
-                    
-                    <div className="flex items-center mt-2">
-                        <div className="flex items-center">
-                            <span className="text-yellow-400">★</span>
-                            <span className="text-sm text-gray-600 ml-1">{item.rating}</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        );
+    const handleScroll = () => {
+        if (scrollRef.current) {
+            const { scrollLeft, scrollWidth, clientWidth } = scrollRef.current;
+            setShowLeftArrow(scrollLeft > 0);
+            setShowRightArrow(scrollLeft < scrollWidth - clientWidth - 10);
+        }
     };
 
     return (
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-            {/* Tour Section */}
-            <div className="mb-12">
-                <div className="flex justify-between items-center mb-6">
-                    <h2 className="text-2xl font-bold text-gray-900">Tours</h2>
-                    <button className="text-emerald-600 hover:text-emerald-700 font-medium">
-                        View All Tours →
+        <div className="max-w-full">
+            {/* Carousel Container */}
+            <div className="relative">
+                {/* Left Arrow */}
+                {showLeftArrow && (
+                    <button 
+                        onClick={scrollLeft}
+                        className="absolute left-0 top-1/2 transform -translate-y-1/2 z-10 bg-white/80 backdrop-blur-sm hover:bg-white rounded-full p-2 shadow-lg transition-all duration-200 border"
+                    >
+                        <ChevronLeft className="w-6 h-6 text-gray-700" />
                     </button>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {topTours.length > 0 ? (
-                        topTours.map(tour => (
-                            <CategoryCard key={tour.id} item={tour} type="Tour" />
-                        ))
-                    ) : (
-                        <div className="col-span-3 text-center py-8">
-                            <p className="text-gray-500">Belum ada data tour tersedia.</p>
-                        </div>
-                    )}
-                </div>
-            </div>
-
-            {/* Event/Wisata Section */}
-            <div className="mb-12">
-                <div className="flex justify-between items-center mb-6">
-                    <h2 className="text-2xl font-bold text-gray-900">Events</h2>
-                    <button className="text-emerald-600 hover:text-emerald-700 font-medium">
-                        View All Events →
+                )}
+                
+                {/* Right Arrow */}
+                {showRightArrow && (
+                    <button 
+                        onClick={scrollRight}
+                        className="absolute right-0 top-1/2 transform -translate-y-1/2 z-10 bg-white/80 backdrop-blur-sm hover:bg-white rounded-full p-2 shadow-lg transition-all duration-200 border"
+                    >
+                        <ChevronRight className="w-6 h-6 text-gray-700" />
                     </button>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {topEvents.length > 0 ? (
-                        topEvents.map(event => (
-                            <CategoryCard key={event.id} item={event} type="Event" />
-                        ))
-                    ) : (
-                        <div className="col-span-3 text-center py-8">
-                            <p className="text-gray-500">Belum ada data event tersedia.</p>
-                        </div>
-                    )}
-                </div>
-            </div>
-
-            {/* Kuliner Section */}
-            <div className="mb-12">
-                <div className="flex justify-between items-center mb-6">
-                    <h2 className="text-2xl font-bold text-gray-900">Culinary</h2>
-                    <button className="text-emerald-600 hover:text-emerald-700 font-medium">
-                        View All Culinary →
-                    </button>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {topKuliners.length > 0 ? (
-                        topKuliners.map(kuliner => (
-                            <CategoryCard key={kuliner.id} item={kuliner} type="Kuliner" />
-                        ))
-                    ) : (
-                        <div className="col-span-3 text-center py-8">
-                            <p className="text-gray-500">Belum ada data kuliner tersedia.</p>
-                        </div>
-                    )}
+                )}
+                
+                {/* Scrollable Container */}
+                <div 
+                    ref={scrollRef}
+                    onScroll={handleScroll}
+                    className="flex gap-10 py-8 px-4 overflow-x-auto scrollbar-hide scroll-smooth"
+                    style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+                >
+                    {itemCards.map(itemCard => (
+                        itemCard
+                    ))}
                 </div>
             </div>
         </div>
-    );
+    )
 }
+
+//     return (
+//         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+//             <div className='relative w-full bg-blue-500'>
+//                 {/* Tour Section */}
+//                 <Image src={img_wayang} alt='image wayang' className='bg-amber-400 absolute'></Image>
+//                 <div className='bg-amber-200 flex flex-col items-end w-1/2'>
+//                     <h2 className='bg-red-100 text-4xl font-semibold text-right'>See What Event Everyone’s Talking About</h2>
+//                     <div className="relative w-full bg-red-500">
+//                         <Swiper modules={[Navigation, Pagination]}
+//                             spaceBetween={16}
+//                             slidesPerView={2}
+//                             navigation={{ 
+//                                 nextEl:".custom-next",
+//                                 prevEl: ".custom-prev"
+//                              }}
+//                             pagination={{ clickable: true }}
+//                             breakpoints={{
+//                             640: { slidesPerView: 2 },
+//                             768: { slidesPerView: 3 },
+//                             1024: { slidesPerView: 3 },
+//                             }}
+//                             className="flex justify-end w-full">
+//                                 {topEvents.length > 0 ? (
+//                                 topEvents.map(event => (
+//                                     <SwiperSlide key={event.id}>
+//                                         <CategoryCard key={event.id} item={event} type="Event" />
+//                                     </SwiperSlide>
+//                                 ))
+//                             ) : (
+//                                 <div className="col-span-3 text-center py-8">
+//                                     <p className="text-gray-500">Belum ada data event tersedia.</p>
+//                                 </div>
+//                             )}
+//                         </Swiper>
+//                         {/* Custom navigation buttons */}
+//                         <div className="custom-next cursor-pointer absolute top-1/2 right-0 z-10 -translate-y-1/2">
+//                         <Image src={img_swipe_navigation} alt="Next" width={40} height={40} />
+//                         </div>
+//                         <div className="custom-prev cursor-pointer absolute top-1/2 left-0 z-10 -translate-y-1/2">
+//                         <Image src={img_swipe_navigation} alt="Prev" width={40} height={40} className="rotate-180"/>
+//                         </div>
+//                     </div>
+//                 </div>
+//             </div>
+//             <div className="mb-12">
+//                 <div className="flex justify-between items-center mb-6">
+//                     <h2 className="text-2xl font-bold text-gray-900">Tours</h2>
+//                     <button className="text-emerald-600 hover:text-emerald-700 font-medium">
+//                         View All Tours →
+//                     </button>
+//                 </div>
+//                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+//                     {topTours.length > 0 ? (
+//                         topTours.map(tour => (
+//                             <CategoryCard key={tour.id} item={tour} type="Tour" />
+//                         ))
+//                     ) : (
+//                         <div className="col-span-3 text-center py-8">
+//                             <p className="text-gray-500">Belum ada data tour tersedia.</p>
+//                         </div>
+//                     )}
+//                 </div>
+//             </div>
+
+//             {/* Event/Wisata Section */}
+//             <div className="mb-12">
+//                 <div className="flex justify-between items-center mb-6">
+//                     <h2 className="text-2xl font-bold text-gray-900">Events</h2>
+//                     <button className="text-emerald-600 hover:text-emerald-700 font-medium">
+//                         View All Events →
+//                     </button>
+//                 </div>
+//                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+//                     {topEvents.length > 0 ? (
+//                         topEvents.map(event => (
+//                             <CategoryCard key={event.id} item={event} type="Event" />
+//                         ))
+//                     ) : (
+//                         <div className="col-span-3 text-center py-8">
+//                             <p className="text-gray-500">Belum ada data event tersedia.</p>
+//                         </div>
+//                     )}
+//                 </div>
+//             </div>
+
+//             {/* Kuliner Section */}
+//             <div className="mb-12">
+//                 <div className="flex justify-between items-center mb-6">
+//                     <h2 className="text-2xl font-bold text-gray-900">Culinary</h2>
+//                     <button className="text-emerald-600 hover:text-emerald-700 font-medium">
+//                         View All Culinary →
+//                     </button>
+//                 </div>
+//                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+//                     {topKuliners.length > 0 ? (
+//                         topKuliners.map(kuliner => (
+//                             <CategoryCard key={kuliner.id} item={kuliner} type="Kuliner" />
+//                         ))
+//                     ) : (
+//                         <div className="col-span-3 text-center py-8">
+//                             <p className="text-gray-500">Belum ada data kuliner tersedia.</p>
+//                         </div>
+//                     )}
+//                 </div>
+//             </div>
+//         </div>
+//     );
+// }

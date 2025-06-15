@@ -9,6 +9,7 @@ import {
 export default function TourManagement({ tours, addTour, deleteTour, updateTour }) {
     const [title, setTitle] = useState('');
     const [time, setTime] = useState('');
+    const category = "Tour"; 
     const [price, setPrice] = useState('');
     const [rating, setRating] = useState('');
     const [location, setLocation] = useState('');

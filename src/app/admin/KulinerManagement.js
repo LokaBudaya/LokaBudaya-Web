@@ -9,6 +9,7 @@ import {
 export default function KulinerManagement({ kuliners, addKuliner, deleteKuliner, updateKuliner }) {
     const [title, setTitle] = useState('');
     const [kulinerTime, setKulinerTime] = useState('');
+    const category = "Kuliner";
     const [price, setPrice] = useState('');
     const [rating, setRating] = useState('');
     const [location, setLocation] = useState('');

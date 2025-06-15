@@ -13,7 +13,7 @@ import { User } from 'lucide-react';
 export default function Navbar({ user, userData }) {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [isVisible, setIsVisible] = useState(true);
-    const [color, setColor] = useState(true);
+    const [color, setColor] = useState(false);
     const pathname = usePathname();
     const router = useRouter();
 
@@ -54,7 +54,7 @@ export default function Navbar({ user, userData }) {
 
     useEffect(()=>{
         const changeColor = () => {
-            if (window.scrollY > 40) {
+            if (window.scrollY > 0) {
                 setColor(true);
             } else {
                 setColor(false);
@@ -68,18 +68,18 @@ export default function Navbar({ user, userData }) {
     }, []);
 
     return (
-        <header className={`fixed top-0 left-0 right-0 z-50 bg-transparent transition-all duration-400 mt-4 border-b 
+        <header className={`fixed top-0 left-0 right-0 z-50 bg-transparent transition-all duration-400 border-b 
             ${ isVisible ? "translate-y-0" : "-translate-y-24" }
-            ${ color ? "border-transparent" : "border-b-white" }
+            ${ color ? "border-transparent" : "border-b-white backdrop-blur-xs" }
          `}>
             <nav className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 transition-all duration-200
-                ${ color ? "rounded-2xl bg-blue-950" : "bg-transparent" }`}>
+                ${ color ? "rounded-2xl bg-lookabudaya_dark_blue mt-4" : "bg-transparent" }`}>
                 <div className="flex justify-between items-center h-18">
                     {/* Logo */}
                     <div className="flex-shrink-0">
                         <Link href="/" className="flex items-center">
                             <Image 
-                                src="/images/logo.png" 
+                                src="/images/logo.svg" 
                                 alt="LokaBudaya Logo" 
                                 width={164}
                                 height={86}
