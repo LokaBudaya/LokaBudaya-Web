@@ -19,11 +19,12 @@ import Link from 'next/link';
 
 export default function AllCategorySections({ filtered, events, tours, kuliners }) {
     return (
-        <div className='mt-24'>
+        <div className='mt-24 relative'>
             {/* pinginnya yg semua dipanggil di sini gas, bukan di categorysection */}
-            <CategorySection events={filtered}></CategorySection>
+            {/* <CategorySection events={filtered}></CategorySection> */}
             
-            <div className='relative mb-48'>
+            <div className='relative mb-28'>
+                <Image src={bg_big_component_blue_thing} alt='bg big component' className='absolute right-0 top-20'></Image>
                 <Image src={wayang} width={640} alt='wayang' className='absolute -left-20 -bottom-36 z-0'></Image>
                 <div className='relative z-5 w-3/5 flex flex-col justify-start left-5/16'>
                     <div className='flex flex-col space-y-6 mb-16'>
@@ -47,7 +48,8 @@ export default function AllCategorySections({ filtered, events, tours, kuliners 
                 </div>
             </div>
 
-            <div className='relative mb-48'>
+            <div className='relative mb-28'>
+                <Image src={bg_big_component_flower_gold} alt='bg big component flower' className='absolute -top-30 -left-40'></Image>
                 <div className='relative z-10 w-3/5 flex flex-col justify-start left-1/12'>
                     <div className='flex flex-col space-y-6 mb-16'>
                         <div className='flex items-center'>
@@ -71,6 +73,8 @@ export default function AllCategorySections({ filtered, events, tours, kuliners 
             </div>
 
             <div className='relative mb-48'>
+                <Image src={bg_component_cross_yellow} alt='bg component cross' className='absolute -bottom-30 left-10'></Image>
+                <Image src={bg_big_component_leaf_blue} alt='bg component leaf' className='absolute -bottom-80 -right-30'></Image>
                 <Image src={nasikuning} width={500} alt='nasikuning' className='absolute -left-20 -bottom-4 z-0'></Image>
                 <div className='relative z-10 w-5/8 flex flex-col justify-start left-5/16'>
                     <div className='flex flex-col space-y-6 mb-16'>

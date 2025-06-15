@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
+import bg_big_component_footer from '../../../public/images/bg-big-component_footer.svg'
+import Image from 'next/image';
 
 import {
     Handshake, Facebook, Instagram, Youtube, Twitter, MessageCircle, Music
@@ -8,8 +10,9 @@ import {
 
 export default function Footer() {
     return (
-        <footer className="bg-slate-800 text-gray-300 mt-16">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <footer className="bg-slate-800 text-gray-300 mt-16 relative overflow-y-hidden overflow-x-hidden">
+            <Image src={bg_big_component_footer} className='absolute -right-50 -bottom-80'></Image>
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 relative">
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
                     {/* Logo dan Partner Section */}
                     <div className="col-span-1 md:col-span-1">

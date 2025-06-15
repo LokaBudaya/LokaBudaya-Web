@@ -81,7 +81,7 @@ export default function DestinationCarousel() {
     };
 
     return (
-        <div className='relative w-full h-full py-12'>
+        <div className='relative w-full h-full py-12 z-10'>
             <Image src={bg_carousel} className='absolute top-0 object-cover w-full' alt='bg carousel'></Image>
             <div className="relative max-w-full mx-auto px-4 sm:px-6 lg:px-8 py-16">
                 <div className="text-center">
