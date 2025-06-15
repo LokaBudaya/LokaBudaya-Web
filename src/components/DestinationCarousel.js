@@ -127,7 +127,7 @@ export default function DestinationCarousel() {
                 </div>
             </div>
             <div className='relative flex items-center'>
-                <Link href='/' className='m-auto cursor-pointer relative border-4 border-lokabudaya_gold_hover_dark text-xl font-medium py-1 px-4 text-white hover:bg-lokabudaya_gold_hover_dark transition-all duration-300'>
+                <Link href='/explore' className='m-auto cursor-pointer relative border-4 border-lokabudaya_gold_hover_dark text-xl font-medium py-1 px-4 text-white hover:bg-lokabudaya_gold_hover_dark transition-all duration-300'>
                         Explore Now →
                 </Link>
             </div>

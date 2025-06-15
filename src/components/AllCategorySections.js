@@ -39,7 +39,7 @@ export default function AllCategorySections({ filtered, events, tours, kuliners 
                     </div>
                     <CategorySection items={events} type={"Event"}></CategorySection>
                     <div className='mt-12 relative'>
-                        <Link href="/" >
+                        <Link href="/explore" >
                             <span className='text-xl absolute right-0 text-white font-aboreto py-2 px-6 bg-lookabudaya_dark_blue transition-all duration-500 hover:shadow-xl hover:shadow-gray-400 hover:-top-1'>
                                 EXPLORE
                             </span>
@@ -62,7 +62,7 @@ export default function AllCategorySections({ filtered, events, tours, kuliners 
                     </div>
                     <CategorySection items={tours} type={"Tour"}></CategorySection>
                     <div className='mt-12 relative'>
-                        <Link href="/" >
+                        <Link href="/explore" >
                             <span className='text-xl absolute left-0 text-white font-aboreto py-2 px-6 bg-lookabudaya_dark_blue transition-all duration-500 hover:shadow-xl hover:shadow-gray-400 hover:-top-1'>
                                 EXPLORE
                             </span>
@@ -85,7 +85,7 @@ export default function AllCategorySections({ filtered, events, tours, kuliners 
                     </div>
                     <CategorySection items={kuliners} type={"Kuliner"}></CategorySection>
                     <div className='mt-12 relative'>
-                        <Link href="/" >
+                        <Link href="/explore" >
                             <span className='text-xl absolute right-0 text-white font-aboreto py-2 px-6 bg-lookabudaya_dark_blue transition-all duration-500 hover:shadow-xl hover:shadow-gray-400 hover:-top-1'>
                                 EXPLORE
                             </span>

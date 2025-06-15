@@ -83,47 +83,40 @@ export default function HomePage() {
     };
   }, []);
 
-  const handleFilterChange = (filters, data) => {
-    let filtered = [data];
+  const handleFilterChange = (filters) => {
+      // Filter events
+      let filteredEvents = events;
+      
+      if (filters.location && filters.location !== "all") {
+          filteredEvents = filteredEvents.filter((event) =>
+              (event.lokasi || event.location || '').toLowerCase().includes(filters.location.toLowerCase())
+          );
+      }
 
-    if (filters.location && filters.location !== "all") {
-      filtered = filtered.filter((event) =>
-        event.lokasi?.toLowerCase().includes(filters.location.toLowerCase())
-      );
-    }
+      if (filters.category && filters.category !== "all") {
+          filteredEvents = filteredEvents.filter(
+              (event) => (event.kategori || event.category || '').toLowerCase() === filters.category.toLowerCase()
+          );
+      }
 
-    if (filters.category && filters.category !== "all") {
-      filtered = filtered.filter(
-        (event) => event.kategori?.toLowerCase() === filters.category.toLowerCase()
-      );
-    }
+      if (filters.date) {
+          filteredEvents = filteredEvents.filter((event) => {
+              const eventDate = new Date(event.tanggal_event?.toDate ? event.tanggal_event.toDate() : event.startDate);
+              const filterDate = new Date(filters.date);
+              return eventDate.toDateString() === filterDate.toDateString();
+          });
+      }
 
-    if (filters.date) {
-      filtered = filtered.filter((event) => {
-        const eventDate = new Date(event.tanggal_event?.toDate());
-        const filterDate = new Date(filters.date);
-        return eventDate.toDateString() === filterDate.toDateString();
-      });
-    }
+      if (filters.search) {
+          filteredEvents = filteredEvents.filter((event) =>
+              [event.nama_event || event.title, event.deskripsi || event.desc, event.lokasi || event.location]
+                  .join(" ")
+                  .toLowerCase()
+                  .includes(filters.search.toLowerCase())
+          );
+      }
 
-    if (filters.search) {
-      filtered = filtered.filter((event) =>
-        [event.nama_event, event.deskripsi, event.lokasi]
-          .join(" ")
-          .toLowerCase()
-          .includes(filters.search.toLowerCase())
-      );
-    }
-
-    setFiltered(filtered);
-
-    const filteredEvents = handleFilterChange(filters, events);
-    const filteredTours = handleFilterChange(filters, tours);
-    const filteredKuliners = handleFilterChange(filters, kuliners);
-
-    setEvents(filteredEvents);
-    setTours(filteredTours);
-    setKuliners(filteredKuliners);
+      setFiltered(filteredEvents);
   };
 
   // Loading state
