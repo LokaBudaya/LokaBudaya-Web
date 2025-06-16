@@ -62,7 +62,7 @@ export default function PartnershipPage() {
                         <p className="font-light text-3xl tracking-widest">Be part of the movement — let’s spotlight what makes your place special !</p>
                     </div>
                     <div className="flex justify-start">
-                        <Link href={'/register'} className="font-aboreto py-2 px-8 bg-lookabudaya_dark_blue text-white text-xl ms-14">
+                        <Link href={'/register'} className="font-aboreto py-2 px-8 font-bold hover:bg-lookabudaya_dark_blue border-4 border-lookabudaya_dark_blue hover:text-white text-xl ms-14 transition-all duration-300">
                             REGISTER NOW &#8594;
                         </Link>
                     </div>

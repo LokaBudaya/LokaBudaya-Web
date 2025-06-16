@@ -72,7 +72,7 @@ export default function CategoryCard({ item, type }) {
     };
 
     return (
-        <div className="bg-white w-64 rounded-2xl border border-gray-300 overflow-hidden cursor-pointer transition-all flex-shrink-0 hover:shadow-lg duration-300">
+        <div className="bg-white w-64 rounded-2xl border border-gray-300 overflow-hidden transition-all flex-shrink-0 hover:shadow-lg duration-300">
             <div className="relative">
                 <img 
                     src={getImage()} 
@@ -115,11 +115,11 @@ export default function CategoryCard({ item, type }) {
                     </div>
                     
                     <div className="flex items-center space-x-4">
-                        <button className="p-1 rounded-full hover:bg-gray-50">
+                        <button className="p-1 rounded-full hover:bg-gray-50 cursor-pointer">
                             <Share2 className="text-gray-400 w-5" />
                         </button>
                         <button 
-                            className="p-1 rounded-full hover:bg-gray-50 text-sm" 
+                            className="p-1 rounded-full hover:bg-gray-50 text-sm cursor-pointer" 
                             onClick={handleWishlistToggle}
                             disabled={loading}
                         >

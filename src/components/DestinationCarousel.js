@@ -66,8 +66,8 @@ export default function DestinationCarousel() {
 
     const DestinationCard = ({ destination }) => {
         return (
-            <div className='hover:-translate-y-6 duration-300 transition-all'>
-                <div className="group cursor-pointer overflow-hidden rounded-lg flex-shrink-0 w-72">
+            <Link href={'/explore'} className='hover:-translate-y-6 duration-300 transition-all'>
+                <div className="group overflow-hidden rounded-lg flex-shrink-0 w-72">
                     <div className="h-48 overflow-hidden">
                         <img 
                             src={destination.image} 
@@ -76,7 +76,7 @@ export default function DestinationCarousel() {
                         />
                     </div>
                 </div>
-            </div>
+            </Link>
         );
     };
 
