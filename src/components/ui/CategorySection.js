@@ -9,7 +9,7 @@ import {
 
 export default function CategorySection({ items = [], type }) {
     // Ambil top 3 berdasarkan rating tertinggi
-    const getTopRated = (items = [], count = 3) => {
+    const getTopRated = (items = [], count = 8) => {
         return items
             .filter(item => item.rating && item.rating > 0)
             .sort((a, b) => b.rating - a.rating)
