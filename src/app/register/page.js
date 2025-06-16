@@ -3,6 +3,7 @@ import { auth, db } from '@/lib/firebase';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import React, { useState } from 'react';
+import EmailVerificationPage from '../email-verification/page';
 
 import { 
     createUserWithEmailAndPassword, 

@@ -1,23 +1,23 @@
 "use client";
-import { auth, db } from '@/lib/firebase';
 
+import { auth } from '@/lib/firebase';
 import { useState } from 'react';
-
 import { signInWithEmailAndPassword } from 'firebase/auth';
+import { useRouter } from 'next/navigation'; // gunakan yang benar di App Router
 
-export default function EmailVerificationPage({ email, navigate }) {
+export default function EmailVerificationPage({ searchParams }) {
     const [isResending, setIsResending] = useState(false);
     const [message, setMessage] = useState('');
+    const router = useRouter();
+
+    const email = searchParams?.email ?? 'your@email.com'; // fallback
 
     const handleResendVerification = async () => {
         setIsResending(true);
         setMessage('');
         
         try {
-            // Untuk resend, kita perlu login dulu sementara
-            await signInWithEmailAndPassword(auth, email, 'temp'); // Ini tidak akan berhasil, tapi kita bisa coba cara lain
-            
-            // Alternatif: beri tahu user untuk check email
+            await signInWithEmailAndPassword(auth, email, 'temp');
             setMessage('Email verifikasi telah dikirim ulang!');
         } catch (error) {
             setMessage('Gagal mengirim ulang email verifikasi. Silakan coba lagi nanti.');
@@ -27,13 +27,12 @@ export default function EmailVerificationPage({ email, navigate }) {
     };
 
     const handleVerificationComplete = () => {
-        navigate('login');
+        router.push('/');
     };
 
     return (
         <div className="flex justify-center items-center min-h-screen bg-gray-50">
             <div className="w-full max-w-md p-8 space-y-6 bg-white rounded-lg shadow-md text-center">
-                {/* Email Icon */}
                 <div className="flex justify-center">
                     <div className="w-16 h-16 bg-blue-100 rounded-lg flex items-center justify-center">
                         <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -77,7 +76,7 @@ export default function EmailVerificationPage({ email, navigate }) {
                 </div>
 
                 <button 
-                    onClick={() => navigate('login')}
+                    onClick={() => router.push('/login')}
                     className="text-gray-500 text-sm hover:text-gray-700 transition-colors"
                 >
                     Back to Login
