@@ -18,7 +18,7 @@ export default function YourDiscoveryFeed() {
                 <h1 className="font-semibold text-5xl">Your Discovery Feed</h1>
 
                 <div className="flex gap-8">
-                    <Link href={'/Find-Out-What-Destinations-Are-Trending-Now'} className="flex-[2]">
+                    <Link href={'/article'} className="flex-[2]">
                         <div className="flex flex-col items-center">
                             <Image src={article_img} alt="article" className="w-full rounded-xl"></Image>
                             <h2 className="font-semibold text-2xl mt-4 mb-1">
@@ -39,7 +39,7 @@ export default function YourDiscoveryFeed() {
 
                     <div className="flex flex-col gap-1.5 flex-[3]">
 
-                        <Link href={'/Discover-Where-Everyones-Making-Memories'}>
+                        <Link href={'/article'}>
                             <div className="flex gap-4 items-center">
                                 <div className="flex-[2]">
                                     <Image src={article_img} alt="article" className="w-full rounded-xl"></Image>
@@ -64,7 +64,7 @@ export default function YourDiscoveryFeed() {
                             </div>
                         </Link>
 
-                        <Link href={'/Discover-Where-Everyones-Making-Memories'}>
+                        <Link href={'/article'}>
                             <div className="flex gap-4 items-center">
                                 <div className="flex-[2]">
                                     <Image src={article_img} alt="article" className="w-full rounded-xl"></Image>
@@ -89,7 +89,7 @@ export default function YourDiscoveryFeed() {
                             </div>
                         </Link>
 
-                        <Link href={'/Discover-Where-Everyones-Making-Memories'}>
+                        <Link href={'/article'}>
                             <div className="flex gap-4 items-center">
                                 <div className="flex-[2]">
                                     <Image src={article_img} alt="article" className="w-full rounded-xl"></Image>

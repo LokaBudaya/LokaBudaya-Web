@@ -54,18 +54,22 @@ export default function Navbar({ user, userData }) {
     }, []);
 
     useEffect(()=>{
-        const changeColor = () => {
-            if (window.scrollY > 0) {
-                setColor(true);
-            } else {
-                setColor(false);
+        if (pathname === "/") {
+            const changeColor = () => {
+                if (window.scrollY > 0) {
+                    setColor(true);
+                } else {
+                    setColor(false);
+                }
             }
-        }
 
-        window.addEventListener('scroll', changeColor);
-        
-        // TAMBAH cleanup
-        return () => window.removeEventListener('scroll', changeColor);
+            window.addEventListener('scroll', changeColor);
+            
+            // TAMBAH cleanup
+            return () => window.removeEventListener('scroll', changeColor);
+        } else {
+            setColor(true);
+        }
     }, []);
 
     return (
@@ -74,7 +78,7 @@ export default function Navbar({ user, userData }) {
             ${ color ? "border-transparent" : "border-b-white backdrop-blur-xs" }
          `}>
             <nav className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 transition-all duration-200
-                ${ color ? "rounded-2xl bg-lookabudaya_dark_blue mt-4" : "bg-transparent" }`}>
+                ${ color ? "rounded-2xl bg-lookabudaya_dark_blue mt-4 border border-gray-300" : "bg-transparent" }`}>
                 <div className="flex justify-between items-center h-18">
                     {/* Logo */}
                     <div className="flex-shrink-0">

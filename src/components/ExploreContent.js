@@ -3,6 +3,7 @@
 import { useState, useMemo } from 'react';
 import { Search, Filter, X } from 'lucide-react';
 import ExploreCard from './ExploreCard';
+import CategoryCard from './ui/CategoryCard';
 
 export default function ExploreContent({ events, tours, kuliners }) {
   const [searchTerm, setSearchTerm] = useState('');
@@ -83,7 +84,7 @@ export default function ExploreContent({ events, tours, kuliners }) {
                 type="checkbox"
                 checked={selectedCategories.includes(category)}
                 onChange={() => handleCategoryChange(category)}
-                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                className="rounded border-gray-300 accent-lookabudaya_dark_blue"
               />
               <span className="text-sm">{category}</span>
             </label>
@@ -134,7 +135,7 @@ export default function ExploreContent({ events, tours, kuliners }) {
                 type="checkbox"
                 checked={selectedPriceRanges.includes(price.value)}
                 onChange={() => handlePriceChange(price.value)}
-                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                className="rounded border-gray-300 accent-lookabudaya_dark_blue"
               />
               <span className="text-sm">{price.label}</span>
             </label>
@@ -148,24 +149,10 @@ export default function ExploreContent({ events, tours, kuliners }) {
     <div className="min-h-screen bg-gray-50 pt-20">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
-        <div className="mb-8">
+        {/* <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Explore Events</h1>
           <p className="text-gray-600">Discover amazing events, tours, and culinary experiences</p>
-        </div>
-
-        {/* Search Bar */}
-        <div className="mb-6">
-          <div className="relative max-w-md">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-            <input
-              type="text"
-              placeholder="Search events, tours, culinary..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            />
-          </div>
-        </div>
+        </div> */}
 
         <div className="flex gap-8">
           {/* Desktop Sidebar */}
@@ -186,6 +173,19 @@ export default function ExploreContent({ events, tours, kuliners }) {
 
           {/* Main Content */}
           <div className="flex-1">
+            {/* Search Bar */}
+            <div className="mb-6">
+              <div className="relative max-w-md">
+                <input
+                  type="text"
+                  placeholder="Search events, tours, culinary..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-4 py-2 border border-gray-300 rounded-full"
+                />
+                <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+              </div>
+            </div>
             <div className="mb-4 flex justify-between items-center">
               <p className="text-gray-600">{filteredItems.length} results found</p>
             </div>
@@ -193,7 +193,8 @@ export default function ExploreContent({ events, tours, kuliners }) {
             {/* Cards Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
               {filteredItems.map((item) => (
-                <ExploreCard key={`${item.type}-${item.id}`} item={item} />
+                <ExploreCard key={`${item.type}-${item.id}`} item={item} type={item.type}/>
+                // <CategoryCard key={item.id} item={item} type={item.type}/>
               ))}
             </div>
 

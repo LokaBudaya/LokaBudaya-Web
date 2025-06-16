@@ -52,14 +52,14 @@ export default function CategoryCard ({ item, type }) {
         const getBadgeColor = () => {
             if (type === 'Tour') return 'bg-lokabudaya_tour text-white';
             if (type === 'Event') return 'bg-lokabudaya_event text-white';
-            if (type === 'Kuliner') return 'bg-lokabudaya_kuliner text-white';
+            if (type === 'Kuliner' || type === 'Culinary') return 'bg-lokabudaya_kuliner text-white';
             return 'bg-gray-200 text-gray-700';
         };
 
         const getFontColor = () => {
             if (type === 'Tour') return 'text-lokabudaya_tour';
             if (type === 'Event') return 'text-lokabudaya_event';
-            if (type === 'Kuliner') return 'text-lokabudaya_kuliner';
+            if (type === 'Kuliner' || type === 'Culinary') return 'text-lokabudaya_kuliner';
             return 'bg-gray-200 text-gray-700';
         };
 

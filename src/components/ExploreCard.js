@@ -1,105 +1,141 @@
-"use client";
+"use client"
 
-import { Heart, Star, MapPin, Clock } from 'lucide-react';
+import { Heart, Share2 } from "lucide-react";
+import { useState } from 'react';
 
-export default function ExploreCard({ item }) {
-  const getTitle = () => item.title || item.nama_event || 'Untitled';
-  const getDescription = () => {
-    const desc = item.desc || item.deskripsi || 'No description available';
-    return desc.length > 100 ? desc.substring(0, 100) + '...' : desc;
-  };
-  const getLocation = () => item.location || item.lokasi || 'Location not specified';
-  const getPrice = () => item.price || item.harga_tiket || 0;
-  const getImage = () => item.imgRes || item.gambar_event || 'https://placehold.co/400x300/166534/FFFFFF?text=' + item.type;
-  const getRating = () => item.rating || 0;
-  
-  const getAdditionalInfo = () => {
-    if (item.type === 'Tour') {
-      return item.time || '10 AM';
-    } else if (item.type === 'Event') {
-      const date = item.startDate || item.tanggal_event;
-      if (date) {
-        const dateObj = date.toDate ? date.toDate() : new Date(date);
-        return dateObj.toLocaleDateString('id-ID', { 
-          day: 'numeric', 
-          month: 'short' 
-        });
-      }
-      return 'TBA';
-    } else if (item.type === 'Culinary') {
-      return item.kulinerTime || '10 AM - 9 PM';
-    }
-    return '';
-  };
+export default function CategoryCard ({ item, type }) {
+        const formatDate = (date) => {
+            if (!date) return '';
+            const dateObj = date.toDate ? date.toDate() : new Date(date);
+            return dateObj.toLocaleDateString('id-ID', { 
+                day: 'numeric', 
+                month: 'long', 
+                year: 'numeric' 
+            });
+        };
 
-  const getCategoryColor = () => {
-    switch(item.type) {
-      case 'Tour': return 'bg-blue-100 text-blue-800';
-      case 'Culinary': return 'bg-orange-100 text-orange-800';
-      default: return 'bg-green-100 text-green-800';
-    }
-  };
+        const getLocation = () => {
+            return item.location || item.lokasi || 'Location not specified';
+        };
 
-  return (
-    <div className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow group">
-      <div className="relative">
-        <img 
-          src={getImage()} 
-          alt={getTitle()}
-          className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300"
-        />
-        <div className="absolute top-3 left-3">
-          <span className={`px-2 py-1 rounded text-xs font-medium ${getCategoryColor()}`}>
-            {item.type}
-          </span>
-        </div>
-        <div className="absolute top-3 right-3">
-          <button className="p-2 rounded-full bg-white/80 hover:bg-white transition-colors">
-            <Heart size={16} className="text-gray-600" />
-          </button>
-        </div>
-        {getAdditionalInfo() && (
-          <div className="absolute bottom-3 left-3">
-            <span className="bg-white/90 px-2 py-1 rounded text-xs font-medium text-gray-700 flex items-center">
-              <Clock size={12} className="mr-1" />
-              {getAdditionalInfo()}
-            </span>
-          </div>
-        )}
-      </div>
-      
-      <div className="p-4">
-        <h3 className="font-bold text-lg text-gray-900 mb-2 line-clamp-1">
-          {getTitle()}
-        </h3>
-        
-        <p className="text-gray-600 text-sm mb-3 line-clamp-2">
-          {getDescription()}
-        </p>
-        
-        <div className="flex items-center text-gray-500 text-sm mb-3">
-          <MapPin size={14} className="mr-1" />
-          <span>{getLocation()}</span>
-        </div>
-        
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <span className="text-emerald-600 font-bold text-lg">
-              {getPrice() === 0 ? 'Free' : `Rp ${getPrice().toLocaleString('id-ID')}`}
-            </span>
-          </div>
-          
-          <div className="flex items-center space-x-4">
-            <div className="flex items-center">
-              <Star size={14} className="text-yellow-400 mr-1" />
-              <span className="text-sm text-gray-600">{getRating()}</span>
+        const getCategory = () => {
+            return type
+        };
+
+        const getTitle = () => {
+            return item.title || item.nama_event || 'Untitled';
+        };
+
+        const getDescription = () => {
+            return item.desc || item.deskripsi || 'No description available';
+        };
+
+        const getImage = () => {
+            return item.imgRes || item.gambar_event || 'https://placehold.co/400x300/166534/FFFFFF?text=' + type;
+        };
+
+        const getPrice = () => {
+            return item.price || item.harga_tiket || 0;
+        };
+
+        const getAdditionalInfo = () => {
+            if (type === 'Tour') {
+                return item.time || '10 AM';
+            } else if (type === 'Event') {
+                return formatDate(item.startDate || item.tanggal_event);
+            } else if (type === 'Kuliner') {
+                return item.kulinerTime || '10 AM - 9 PM';
+            }
+            return '';
+        };
+
+        const getBadgeColor = () => {
+            if (type === 'Tour') return 'bg-lokabudaya_tour text-white';
+            if (type === 'Event') return 'bg-lokabudaya_event text-white';
+            if (type === 'Kuliner' || type === 'Culinary') return 'bg-lokabudaya_kuliner text-white';
+            return 'bg-gray-200 text-gray-700';
+        };
+
+        const getFontColor = () => {
+            if (type === 'Tour') return 'text-lokabudaya_tour';
+            if (type === 'Event') return 'text-lokabudaya_event';
+            if (type === 'Kuliner' || type === 'Culinary') return 'text-lokabudaya_kuliner';
+            return 'bg-gray-200 text-gray-700';
+        };
+
+        const formatHarga = (harga) => {
+            if (harga >= 1_000_000) {
+                const juta = harga / 1_000_000;
+                return `${juta.toFixed(juta % 1 === 0 ? 0 : 1)} juta`;
+            } else if (harga >= 1_000) {
+                return harga.toLocaleString('id-ID'); // Tetap pakai format ribuan biasa
+            } else {
+                return harga.toString(); // untuk angka kecil
+            }
+        };
+
+        const [wishlist, setWishlist] = useState(false);
+
+        return (
+            <div className="bg-white w-64 rounded-2xl border border-gray-300 overflow-hidden cursor-pointer transition-all flex-shrink-0 hover:shadow-lg duration-300">
+                <div className="relative">
+                    <img 
+                        src={getImage()} 
+                        alt={getTitle()}
+                        className="w-full h-48 object-cover"
+                    />
+                    <div className="absolute top-4 left-0">
+                        <span className={`bg-lokabudaya_gold_hover_dark text-white pr-4 pl-3 py-1 rounded-br-full rounded-tr-full border border-white text-xs font-medium`}>
+                            {getLocation()}
+                        </span>
+                    </div>
+                    <div className="absolute top-4 right-0">
+                        <span className={`${getBadgeColor()} pr-3 pl-4 py-1 rounded-bl-full rounded-tl-full border border-white text-xs font-medium`}>
+                            {getCategory()}
+                        </span>
+                    </div>
+                </div>
+                
+                <div className="p-4 ">
+                    <h3 className="font-semibold text-lg w-full text-gray-900 truncate">
+                        {getTitle()}
+                    </h3>
+
+                    <div className="flex items-center">
+                        <div className="flex items-center">
+                            <span className="text-yellow-400">★</span>
+                            <span className="font-medium text-xs ml-1">{item.rating}</span>
+                        </div>
+                    </div>
+
+                    <div className="text-gray-600 text-sm mb-3 line-clamp-2">
+                      <p>{`${getDescription()}`}</p>
+                    </div>
+                    
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-2">
+                            <p className={`${getFontColor()} font-medium text-2xl`}>
+                                <span className="text-lg font-light">Rp</span> {formatHarga(getPrice())}
+                            </p>
+                        </div>
+                        
+                        <div className="flex items-center space-x-4">
+                            <button className="p-1 rounded-full hover:bg-gray-50">
+                                <span className="text-sm"><Share2 className="text-gray-400 w-5"></Share2></span>
+                            </button>
+                            <button className="p-1 rounded-full hover:bg-gray-50 text-sm" onClick={ () =>
+                                setWishlist(!wishlist)
+                            }>
+                                {wishlist ? (
+                                        <Heart strokeWidth={0} fill="Red"></Heart>
+                                    ) : (
+                                        <Heart className="text-gray-400"></Heart>
+                                    )  
+                                }
+                            </button>
+                        </div>
+                    </div>
+                </div>
             </div>
-            {/* <button className="px-4 py-2 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 transition-colors">
-              Details
-            </button> */}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
+        );
+    };
